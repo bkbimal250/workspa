@@ -28,21 +28,35 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  const [emailError, setEmailError] = useState('');
+
 
   const handlePhoneChange = (value: string) => {
     // Remove all non-digit characters
     const digitsOnly = value.replace(/\D/g, '');
-    
+
     // Limit to 10 digits
     const limitedDigits = digitsOnly.slice(0, 10);
-    
+
     setFormData({ ...formData, phone: limitedDigits });
-    
+
     // Clear error when user starts typing
     if (phoneError) {
       setPhoneError('');
     }
   };
+  const handleEmailChange = (value: string) => {
+    const trimmed = value.trimStart(); // allow typing, prevent leading space
+    setFormData({ ...formData, email: trimmed });
+
+    if (trimmed && !validateEmail(trimmed)) {
+      setEmailError('Please enter a valid email address.');
+    } else {
+      setEmailError('');
+    }
+  };
+
+
 
   const validatePhone = (phone: string): boolean => {
     // Check if phone is exactly 10 digits
@@ -50,27 +64,49 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
     return digitsOnly.length === 10;
   };
 
+  const validateEmail = (email: string) => {
+    // If empty, it’s valid (optional)
+    if (!email) return true;
+
+    // Regex for validating email
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setPhoneError('');
     setLoading(true);
 
-    // Validate phone number
+    // Validate phone
     if (!validatePhone(formData.phone)) {
       setPhoneError('Phone number must be exactly 10 digits');
       setLoading(false);
       return;
     }
 
+    // Validate email (optional, but must be correct if entered)
+    const validateEmail = (email: string) => {
+      if (!email) return true;
+
+      const trimmedEmail = email.trim();
+      const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      return regex.test(trimmedEmail);
+    };
+
+
+
     try {
-      // Prepare data: convert empty email to null/undefined
       const dataToSend = {
         ...formData,
-        email: formData.email?.trim() || undefined,
+        email: formData.email?.trim() || undefined, // Send undefined if blank
       };
-      
+
       await messageAPI.createMessage(dataToSend);
+
       setSuccess(true);
       setPhoneError('');
       setFormData({
@@ -80,50 +116,25 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
         email: '',
         message: '',
       });
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      // Close popup after success if it's a popup
+
+      if (onSuccess) onSuccess();
+
       if (isPopup && onClose) {
         setTimeout(() => {
           setSuccess(false);
           onClose();
         }, 2000);
       } else {
-        // Reset success message after 3 seconds for non-popup
         setTimeout(() => setSuccess(false), 3000);
       }
+
     } catch (err: any) {
-      // Handle validation errors properly
-      let errorMessage = 'Failed to send message. Please try again.';
-      
-      if (err.response?.data) {
-        const errorData = err.response.data;
-        
-        // Handle Pydantic validation errors
-        if (errorData.detail) {
-          if (Array.isArray(errorData.detail)) {
-            // Multiple validation errors
-            const errors = errorData.detail.map((e: any) => {
-              const field = e.loc?.join('.') || 'field';
-              return `${field}: ${e.msg}`;
-            });
-            errorMessage = errors.join(', ');
-          } else if (typeof errorData.detail === 'string') {
-            errorMessage = errorData.detail;
-          } else {
-            errorMessage = 'Validation error. Please check your input.';
-          }
-        }
-      }
-      
-      setError(errorMessage);
+      setError('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
 
   if (success) {
     return (
@@ -158,9 +169,9 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
           <div className="mb-4 pr-8">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <FaEnvelope className="text-brand-600" size={20} />
-             Apply for {jobTitle}
+              Apply for {jobTitle}
             </h3>
-           
+
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -203,9 +214,8 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
                   type="tel"
                   required
                   maxLength={10}
-                  className={`w-full rounded-lg border px-4 py-2 pl-10 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${
-                    phoneError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full rounded-lg border px-4 py-2 pl-10 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${phoneError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="Enter 10 digit phone number"
                   value={formData.phone}
                   onChange={(e) => handlePhoneChange(e.target.value)}
@@ -222,7 +232,7 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
             </div>
 
             <div>
-              <label htmlFor="popup_email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address (Optional)
               </label>
               <div className="relative">
@@ -230,15 +240,18 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
                   <FaEnvelope className="text-gray-400" size={16} />
                 </div>
                 <input
-                  id="popup_email"
+                  id="email"
                   type="email"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 pl-10 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  className={`w-full rounded-lg border px-4 py-2 pl-10 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${emailError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                    }`}
                   placeholder="Enter your email (optional)"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => handleEmailChange(e.target.value)}
                 />
               </div>
+              {emailError && <p className="mt-1 text-sm text-red-600">{emailError}</p>}
             </div>
+
 
             <div>
               <label htmlFor="popup_message" className="block text-sm font-medium text-gray-700 mb-1">
@@ -349,9 +362,8 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
               type="tel"
               required
               maxLength={10}
-              className={`input-field pl-10 ${
-                phoneError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
-              }`}
+              className={`input-field pl-10 ${phoneError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
+                }`}
               placeholder="Enter 10 digit phone number"
               value={formData.phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
@@ -378,13 +390,16 @@ export default function MessageForm({ jobId, jobTitle, onSuccess, isPopup = fals
             <input
               id="email"
               type="email"
-              className="input-field pl-10"
+              className={`w-full rounded-lg border px-4 py-2 pl-10 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 ${emailError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                }`}
               placeholder="Enter your email (optional)"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => handleEmailChange(e.target.value)}
             />
           </div>
+          {emailError && <p className="mt-1 text-sm text-red-600">{emailError}</p>}
         </div>
+
 
         <div>
           <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">

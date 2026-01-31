@@ -12,16 +12,16 @@ import Pagination from '@/components/Pagination';
 import Link from 'next/link';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function LocationJobsPage() {
   const params = useParams();
   // Handle catch-all route: location is an array
   const locationArray = params?.location as string[] | string | undefined;
-  const locationSlug = Array.isArray(locationArray) 
-    ? locationArray.join('-') 
+  const locationSlug = Array.isArray(locationArray)
+    ? locationArray.join('-')
     : (locationArray || '');
-  
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobCount, setJobCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -56,7 +56,7 @@ export default function LocationJobsPage() {
     try {
       // Use smart parsing to match against actual location data
       const parsed = await parseLocationSlugSmart(locationSlug);
-      
+
       // Set location IDs if found
       if (parsed.areaId || parsed.cityId || parsed.stateId) {
         setLocationIds({
@@ -69,7 +69,7 @@ export default function LocationJobsPage() {
         const ids = await findLocationIds(parsed.area, parsed.city, parsed.state);
         setLocationIds(ids);
       }
-      
+
       // Set location names
       if (parsed.area || parsed.city || parsed.state) {
         setLocationNames({
@@ -96,7 +96,7 @@ export default function LocationJobsPage() {
       const params_query: any = {
         limit: 50,
       };
-      
+
       if (locationIds.areaId) {
         params_query.area_id = locationIds.areaId;
       } else if (locationIds.cityId) {
@@ -118,7 +118,7 @@ export default function LocationJobsPage() {
   const fetchJobCount = async () => {
     try {
       const params_query: any = {};
-      
+
       if (locationIds.areaId) {
         params_query.area_id = locationIds.areaId;
       } else if (locationIds.cityId) {
@@ -153,7 +153,7 @@ export default function LocationJobsPage() {
   // Generate enhanced meta description with job examples
   const enhancedDescription = useMemo(() => {
     const baseDescription = `Find ${jobCount > 0 ? jobCount : ''} Work Spa in ${locationDisplayName}.`;
-    
+
     if (paginatedJobs.length > 0 && !loading) {
       const jobExamples = paginatedJobs
         .filter(job => job.title && (job.salary_min || job.salary_max))
@@ -161,7 +161,7 @@ export default function LocationJobsPage() {
         .map(job => {
           const jobTitle = job.title || 'Spa Job';
           let salaryText = '';
-          
+
           if (job.salary_min && job.salary_max) {
             const minK = Math.round(job.salary_min / 1000);
             const maxK = Math.round(job.salary_max / 1000);
@@ -170,15 +170,15 @@ export default function LocationJobsPage() {
             const minK = Math.round(job.salary_min / 1000);
             salaryText = ` · ₹${minK}k+`;
           }
-          
+
           return `${jobTitle}${salaryText}`;
         });
-      
+
       if (jobExamples.length > 0) {
         return `${baseDescription} ${jobExamples.join('; ')}. Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
       }
     }
-    
+
     return `${baseDescription} Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
   }, [locationDisplayName, jobCount, paginatedJobs, loading]);
 
@@ -291,7 +291,7 @@ export default function LocationJobsPage() {
         ]}
         url={pageUrl}
       />
-      
+
       {/* Structured Data for SEO */}
       <script
         type="application/ld+json"
@@ -301,7 +301,7 @@ export default function LocationJobsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
-      
+
       <Navbar />
 
       {/* Hero Section */}
@@ -386,7 +386,7 @@ export default function LocationJobsPage() {
                 />
               ))}
             </div>
-            
+
             {/* Pagination */}
             {jobs.length > itemsPerPage && (
               <div className="mt-8">

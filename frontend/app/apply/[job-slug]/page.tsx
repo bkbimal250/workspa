@@ -17,6 +17,8 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -27,13 +29,30 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
   });
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvFileName, setCvFileName] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    phone?: string;
+  }>({});
+  const PhoneValidator = (phone: string) => {
+    const cleaned = phone.replace(/\s|-/g, '');
+    return /^(\+?\d{1,3})?\d{10}$/.test(cleaned);
+  };
+
+  const EmailValidator = (email: string): boolean => {
+    // OPTIONAL email
+    if (!email || email.trim() === '') return true;
+
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email.trim());
+  };
+
 
   useEffect(() => {
     const fetchJob = async () => {
       try {
         const jobData = await jobAPI.getJobBySlug(params['job-slug']);
         setJob(jobData);
-        
+
         // Pre-fill form if user is logged in
         const token = tokenManager.getToken();
         if (token) {
@@ -51,6 +70,9 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
 
     fetchJob();
   }, [params['job-slug']]);
+
+
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -71,18 +93,18 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
         'image/gif',
         'image/webp'
       ];
-      
+
       // Also check by extension as a fallback (some browsers may not set MIME type correctly)
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
       const validExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
-      
+
       if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension || '')) {
         const errorMsg = 'Please upload a PDF, DOC, DOCX, or image file (JPG, PNG, GIF, WEBP)';
         setError(errorMsg);
         showToast.error(errorMsg);
         return;
       }
-      
+
       // Validate file size (10MB max to match backend)
       if (file.size > 10 * 1024 * 1024) {
         const errorMsg = 'File size must be less than 10MB';
@@ -90,12 +112,13 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
         showToast.error(errorMsg);
         return;
       }
-      
+
       setCvFile(file);
       setCvFileName(file.name);
       setError(null);
     }
   };
+
 
   const formatSalary = (job: Job) => {
     if (!job.salary_min && !job.salary_max) return 'Not specified';
@@ -128,17 +151,29 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
     setError(null);
     setSubmitting(true);
 
+
+
     // Validate required fields for anonymous users
     const token = tokenManager.getToken();
     if (!token) {
-      if (!formData.name || !formData.email || !formData.phone) {
-        const errorMsg = 'Name, Email, and Phone are required';
+      if (!formData.name || !formData.phone) {
+        const errorMsg = 'Name and Phone are required';
+        setError(errorMsg);
+        showToast.error(errorMsg);
+        setSubmitting(false);
+        return;
+      }
+
+      // Email is optional, but must be valid if entered
+      if (!EmailValidator(formData.email)) {
+        const errorMsg = 'Please enter a valid email address';
         setError(errorMsg);
         showToast.error(errorMsg);
         setSubmitting(false);
         return;
       }
     }
+
 
     if (!job) {
       const errorMsg = 'Job not found';
@@ -152,7 +187,7 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
       // Create FormData for multipart/form-data
       const formDataToSend = new FormData();
       formDataToSend.append('job_id', job.id.toString());
-      
+
       if (formData.name) formDataToSend.append('name', formData.name);
       if (formData.email) formDataToSend.append('email', formData.email);
       if (formData.phone) formDataToSend.append('phone', formData.phone);
@@ -161,10 +196,10 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
       if (cvFile) formDataToSend.append('cv_file', cvFile);
 
       await applicationAPI.createApplication(formDataToSend);
-      
+
       setSuccess(true);
       showToast.success('Application submitted successfully!', 'You will be redirected to the job page shortly.');
-      
+
       // Redirect after 3 seconds
       setTimeout(() => {
         router.push(`/jobs/${job.slug}`);
@@ -349,37 +384,54 @@ export default function ApplyPage({ params }: { params: { 'job-slug': string } }
                       />
                     </div>
 
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Email Address <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-white"
-                        placeholder="your.email@example.com"
-                      />
-                    </div>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      onBlur={() => {
+                        if (formData.email && !EmailValidator(formData.email)) {
+                          setFieldErrors(prev => ({
+                            ...prev,
+                            email: 'Please enter a valid email address',
+                          }));
+                        } else {
+                          setFieldErrors(prev => ({ ...prev, email: undefined }));
+                        }
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    />
 
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Phone Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition bg-white"
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
+                    {fieldErrors.email && (
+                      <p className="text-sm text-red-600 mt-1">{fieldErrors.email}</p>
+                    )}
+
+
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      onBlur={() => {
+                        if (formData.phone && !PhoneValidator(formData.phone)) {
+                          setFieldErrors(prev => ({
+                            ...prev,
+                            phone: 'Please enter a valid 10-digit phone number',
+                          }));
+                        } else {
+                          setFieldErrors(prev => ({ ...prev, phone: undefined }));
+                        }
+                      }}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                    />
+
+                    {fieldErrors.phone && (
+                      <p className="text-sm text-red-600 mt-1">{fieldErrors.phone}</p>
+                    )}
+
 
                     <div>
                       <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-2">

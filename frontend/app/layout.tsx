@@ -111,7 +111,7 @@ export default function RootLayout({
           </div>
           <ChatWidget />
           <ContactPopupTrigger />
-          <Toaster 
+          <Toaster
             position="top-right"
             richColors
             closeButton

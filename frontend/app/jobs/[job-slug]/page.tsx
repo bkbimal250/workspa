@@ -30,7 +30,7 @@ import {
   getLogoUrl,
 } from '@/components/job-detail';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -74,7 +74,7 @@ export default function JobDetailPage() {
     try {
       const data = await jobAPI.getJobBySlug(params['job-slug'] as string);
       setJob(data as JobWithRelations);
-      
+
       // Fetch SPA details if not included in response
       if (data.spa_id && (!data.spa || !(data.spa as any).rating)) {
         try {
@@ -94,12 +94,12 @@ export default function JobDetailPage() {
   const fetchRelatedJobs = async () => {
     try {
       if (!job) return;
-      
+
       const queryParams: any = { limit: 6 };
-      
+
       if (job.job_category) {
-        const categoryName = typeof job.job_category === 'string' 
-          ? job.job_category 
+        const categoryName = typeof job.job_category === 'string'
+          ? job.job_category
           : job.job_category.name;
         if (categoryName) {
           queryParams.job_category = categoryName;
@@ -108,7 +108,7 @@ export default function JobDetailPage() {
       if (job.city_id) {
         queryParams.city_id = job.city_id;
       }
-      
+
       const jobs = await jobAPI.getAllJobs(queryParams);
       const filtered = jobs.filter(j => j.id !== job.id).slice(0, 5);
       setRelatedJobs(filtered);
@@ -156,10 +156,10 @@ export default function JobDetailPage() {
 
   const handleDirectApply = async () => {
     if (!job || !user) return;
-    
+
     setApplying(true);
     try {
-      await axios.post(`${API_URL}/api/jobs/${job.id}/track-apply-click`).catch(() => {});
+      await axios.post(`${API_URL}/api/jobs/${job.id}/track-apply-click`).catch(() => { });
       await applicationAPI.directApply(job.id);
       showToast.success('Application submitted successfully!');
       setTimeout(() => {
@@ -255,7 +255,7 @@ export default function JobDetailPage() {
       'PER_DIEM',
       'OTHER',
     ];
-    
+
     // Map common variations
     const typeMap: Record<string, string> = {
       'FULL TIME': 'FULL_TIME',
@@ -265,64 +265,94 @@ export default function JobDetailPage() {
       'FULL-TIME': 'FULL_TIME',
       'PART-TIME': 'PART_TIME',
     };
-    
+
     const mapped = typeMap[normalized] || normalized;
     return validTypes.includes(mapped) ? mapped : 'FULL_TIME';
   };
 
   // Generate structured data (JSON-LD) for SEO - Updated to match Google standards
   const jobSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'JobPosting',
-    title: job.title,
-    description: job.description,
+    "@context": "https://schema.org",
+    "@type": "JobPosting",
+
+    title: String(job.title),
+
+    description: String(job.description),
+
     identifier: {
-      '@type': 'PropertyValue',
-      name: job.spa?.name || 'SPA',
-      value: job.id.toString(),
+      "@type": "PropertyValue",
+      name: job.spa?.name || "SPA",
+      value: String(job.id),
     },
-    datePosted: job.created_at,
-    validThrough: job.expires_at || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-    employmentType: normalizeEmploymentType(job.Employee_type || 'FULL_TIME'),
+
+    datePosted: new Date(job.created_at).toISOString(),
+
+    validThrough: job.expires_at
+      ? new Date(job.expires_at).toISOString()
+      : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+
+    employmentType: normalizeEmploymentType(
+      job.Employee_type || "FULL_TIME"
+    ),
+
     hiringOrganization: {
-      '@type': 'Organization',
-      name: job.spa?.name || 'SPA',
-      ...(logoUrl && { logo: logoUrl }),
-      ...(job.spa?.slug && { sameAs: `${siteUrl}/besttopspas/${job.spa.slug}` }),
+      "@type": "Organization",
+      name: job.spa?.name || "SPA",
+      ...(logoUrl ? { logo: logoUrl } : {}),
+      ...(job.spa?.slug
+        ? { sameAs: `${siteUrl}/besttopspas/${job.spa.slug}` }
+        : {}),
     },
+
     jobLocation: {
-      '@type': 'Place',
+      "@type": "Place",
       address: {
-        '@type': 'PostalAddress',
-        ...(job.spa?.address && { streetAddress: job.spa.address }),
-        addressLocality: job.city?.name || '',
-        addressRegion: job.state?.name || '',
-        postalCode: job.postalCode || '',
-        addressCountry: job.country?.name || 'IN',
+        "@type": "PostalAddress",
+        addressLocality: job.city?.name || "Unknown",
+        addressRegion: job.state?.name || "Unknown",
+        addressCountry: job.country || "IN",
+        ...(job.spa?.address
+          ? { streetAddress: job.spa.address }
+          : {}),
+        ...(job.postalCode
+          ? { postalCode: job.postalCode }
+          : {}),
       },
     },
-    // Use minimum salary only for baseSalary (in PA - Per Annum)
-    ...(job.salary_min && {
-      baseSalary: {
-        '@type': 'MonetaryAmount',
-        currency: job.salary_currency || 'INR',
-        value: {
-          '@type': 'QuantitativeValue',
-          value: job.salary_min,
-          unitText: 'YEAR',
+
+    ...(job.salary_min
+      ? {
+        baseSalary: {
+          "@type": "MonetaryAmount",
+          currency: job.salary_currency || "INR",
+          value: {
+            "@type": "QuantitativeValue",
+            value: Number(job.salary_min),
+            unitText: "YEAR",
+          },
         },
-      },
-    }),
-    ...(job.experience_years_min && {
-      experienceRequirements: {
-        '@type': 'OccupationalExperienceRequirements',
-        monthsOfExperience: job.experience_years_min * 12,
-      },
-    }),
-    ...(job.key_skills && {
-      skills: job.key_skills.split(',').map(s => s.trim()).filter(Boolean),
-    }),
+      }
+      : {}),
+
+    ...(job.experience_years_min
+      ? {
+        experienceRequirements: {
+          "@type": "OccupationalExperienceRequirements",
+          monthsOfExperience: job.experience_years_min * 12,
+        },
+      }
+      : {}),
+
+    ...(job.key_skills
+      ? {
+        skills: job.key_skills
+          .split(",")
+          .map(skill => skill.trim())
+          .filter(Boolean),
+      }
+      : {}),
   };
+
 
   return (
     <div className="min-h-screen bg-surface-light">
@@ -349,7 +379,7 @@ export default function JobDetailPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
       <Navbar />
-      
+
       {/* Message Form Popup */}
       {showMessagePopup && job && (
         <MessageForm
@@ -362,7 +392,7 @@ export default function JobDetailPage() {
           }}
         />
       )}
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Content - Left Panel */}
@@ -374,10 +404,10 @@ export default function JobDetailPage() {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
               <JobDetailsCard job={job} applicationCount={applicationCount} />
               <div className="px-6 pb-6">
-                <JobActions 
-                  job={job} 
-                  user={user} 
-                  applying={applying} 
+                <JobActions
+                  job={job}
+                  user={user}
+                  applying={applying}
                   onApply={handleDirectApply}
                 />
               </div>
@@ -415,7 +445,7 @@ export default function JobDetailPage() {
 
             {/* Company Info */}
             <CompanyInfo job={job} />
-            
+
             {/* Employer CTA */}
             <div className="bg-gradient-to-br from-brand-50 to-gold-50 rounded-xl border-2 border-brand-200 p-5">
               <h3 className="text-base font-bold text-gray-900 mb-2">Post a Job in 2 Minutes</h3>

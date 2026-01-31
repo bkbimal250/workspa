@@ -26,6 +26,7 @@ const nextConfig = {
         hostname: 'spajob.api.spajob.spajobs.co.in',
         pathname: '/uploads/**',
       },
+
     ],
 
     formats: ['image/webp', 'image/avif'],
