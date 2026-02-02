@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
 
 interface CategoryLocationLayoutProps {
@@ -16,19 +16,38 @@ export async function generateMetadata({
   try {
     const categorySlug = params.category;
     const locationSlug = params.location;
-    
-    // Format category name (capitalize each word)
-    const categoryName = categorySlug
+
+    // Format category name (fallback)
+    let categoryName = categorySlug
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
-    
+
+    // 1. Find actual category name for better count fetching
+    let actualCategoryName = categorySlug;
+    try {
+      const catRes = await fetch(`${apiUrl}/api/jobs/categories?limit=500`, {
+        next: { revalidate: 86400 } // Cache for 24 hours
+      });
+      if (catRes.ok) {
+        const categories = await catRes.json();
+        const matchingCategory = categories.find((c: any) =>
+          c.slug === categorySlug ||
+          c.name.toLowerCase() === categorySlug.replace(/-/g, ' ')
+        );
+        if (matchingCategory) {
+          actualCategoryName = matchingCategory.name;
+          categoryName = actualCategoryName;
+        }
+      }
+    } catch (e) { }
+
     // Format location name (capitalize each word)
     const locationName = locationSlug
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
-    
+
     // Fetch job count for this category and location
     let jobCount = 0;
     try {
@@ -36,7 +55,7 @@ export async function generateMetadata({
       const citiesResponse = await fetch(`${apiUrl}/api/locations/cities?limit=1000`, {
         cache: 'no-store',
       });
-      
+
       let cityId: number | undefined;
       if (citiesResponse.ok) {
         const cities = await citiesResponse.json();
@@ -45,21 +64,21 @@ export async function generateMetadata({
           cityId = city.id;
         }
       }
-      
+
       // Build query params
       const params_query: any = {
-        job_category: categorySlug,
+        job_category: actualCategoryName, // Use actual name
       };
-      
+
       if (cityId) {
         params_query.city_id = cityId;
       }
-      
+
       // Fetch job count
       const countResponse = await fetch(`${apiUrl}/api/jobs/count?${new URLSearchParams(params_query as any).toString()}`, {
         cache: 'no-store',
       });
-      
+
       if (countResponse.ok) {
         const data = await countResponse.json();
         jobCount = data.count || 0;
@@ -67,23 +86,18 @@ export async function generateMetadata({
     } catch (error) {
       console.error('Error fetching job count:', error);
     }
-    
-    // Format title like: "Therapist Jobs In Navi Mumbai - 1525 Therapist Job Vacancies In Navi Mumbai"
-    // For browser tab: Keep it shorter "Therapist Jobs In Navi Mumbai"
-    // For full SEO title: Include count "Therapist Jobs In Navi Mumbai - 1525 Therapist Job Vacancies In Navi Mumbai"
+
     const jobCountText = jobCount > 0 ? `${jobCount.toLocaleString()} ` : '';
-    const baseTitle = `${categoryName} Jobs In ${locationName}`;
-    const fullTitle = jobCount > 0 
-      ? `${baseTitle} - ${jobCountText}${categoryName} Job Vacancies In ${locationName} | Work Spa Portal`
-      : `${baseTitle} | Work Spa Portal`;
-    
-    // Use full title for SEO (search engines will show what they want)
+    const baseTitle = `${categoryName} Jobs in ${locationName}`;
+    const fullTitle = jobCount > 0
+      ? `${baseTitle} - ${jobCountText}${categoryName} Job Vacancies in ${locationName} | Workspa.in`
+      : `${baseTitle} | Workspa.in`;
+
     const title = fullTitle;
-    
-    const description = `Find ${jobCountText}${categoryName.toLowerCase()} jobs in ${locationName}. Browse and apply to ${categoryName.toLowerCase()} job vacancies in ${locationName}. Search ${categoryName.toLowerCase()} jobs near you with salary, experience, and location filters.`;
-    
+    const description = `Find ${jobCountText}${categoryName.toLowerCase()} jobs in ${locationName}. Browse therapist, masseuse, and spa manager positions. Apply directly to spas without login.`;
+
     const pageUrl = `${siteUrl}/jobs/category/${categorySlug}/location/${locationSlug}`;
-    
+
     return {
       title,
       description,
@@ -102,7 +116,7 @@ export async function generateMetadata({
         url: pageUrl,
         title,
         description,
-        siteName: 'Workspa - Work Spa Portal',
+        siteName: 'Workspa.in',
       },
       twitter: {
         card: 'summary_large_image',
@@ -115,18 +129,11 @@ export async function generateMetadata({
     };
   } catch (error) {
     console.error('Error generating metadata:', error);
-    // Fallback metadata
-    const categoryName = params.category
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-    const locationName = params.location
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-    
+    const categoryName = params.category.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const locationName = params.location.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
     return {
-      title: `${categoryName} Jobs In ${locationName} | Work Spa Portal`,
+      title: `${categoryName} Jobs in ${locationName} | Workspa.in`,
       description: `Find ${categoryName.toLowerCase()} jobs in ${locationName}. Browse and apply to spa job vacancies.`,
     };
   }
@@ -137,4 +144,3 @@ export default function CategoryLocationLayout({
 }: CategoryLocationLayoutProps) {
   return <>{children}</>;
 }
-

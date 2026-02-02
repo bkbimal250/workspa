@@ -12,6 +12,7 @@ import axios from 'axios';
 import Link from 'next/link';
 import SEOHead from '@/components/SEOHead';
 import { showToast, showErrorToast } from '@/lib/toast';
+import CategoryLocationSearch from './CategoryLocationSearch';
 import {
   JobHeader,
   JobDetailsCard,
@@ -44,12 +45,19 @@ export default function JobDetailPage() {
   const [applying, setApplying] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
 
+  const slug = params?.['job-slug'] as string;
+
+  // Handle SEO Search Route Detection
+  if (slug?.includes('-jobs-in-')) {
+    return <CategoryLocationSearch slug={slug} />;
+  }
+
   useEffect(() => {
-    if (params['job-slug']) {
+    if (slug) {
       fetchJob();
       fetchPopularJobs();
     }
-  }, [params]);
+  }, [slug]);
 
   useEffect(() => {
     if (job) {
@@ -72,7 +80,8 @@ export default function JobDetailPage() {
 
   const fetchJob = async () => {
     try {
-      const data = await jobAPI.getJobBySlug(params['job-slug'] as string);
+      if (!slug) return;
+      const data = await jobAPI.getJobBySlug(slug);
       setJob(data as JobWithRelations);
 
       // Fetch SPA details if not included in response
@@ -270,14 +279,57 @@ export default function JobDetailPage() {
     return validTypes.includes(mapped) ? mapped : 'FULL_TIME';
   };
 
+  // Generate FAQ schema
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `How do I apply for ${job.title}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `You can apply for the ${job.title} position directly on Workspa.in by clicking the Apply button and submitting your details.`
+        }
+      },
+      {
+        "@type": "Question",
+        name: `Is this ${job.title} job full-time or part-time?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `This job is a ${normalizeEmploymentType(job.Employee_type || "FULL_TIME").replace("_", " ").toLowerCase()} position.`
+        }
+      },
+      {
+        "@type": "Question",
+        name: `Where is this job located?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `This job is located in ${locationStr}.`
+        }
+      },
+      ...(salaryStr !== 'Not Disclosed'
+        ? [{
+          "@type": "Question",
+          name: `What is the salary for this job?`,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: `The salary for this position is ${salaryStr}.`
+          }
+        }]
+        : [])
+    ]
+  };
+
   // Generate structured data (JSON-LD) for SEO - Updated to match Google standards
   const jobSchema = {
     "@context": "https://schema.org",
     "@type": "JobPosting",
+    "@id": `${siteUrl}/jobs/${job.slug}`,
 
     title: String(job.title),
 
-    description: String(job.description),
+    description: String(job.description).replace(/<[^>]*>?/gm, ''),
 
     identifier: {
       "@type": "PropertyValue",
@@ -291,9 +343,7 @@ export default function JobDetailPage() {
       ? new Date(job.expires_at).toISOString()
       : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
 
-    employmentType: normalizeEmploymentType(
-      job.Employee_type || "FULL_TIME"
-    ),
+    employmentType: normalizeEmploymentType(job.Employee_type || "FULL_TIME"),
 
     hiringOrganization: {
       "@type": "Organization",
@@ -310,48 +360,57 @@ export default function JobDetailPage() {
         "@type": "PostalAddress",
         addressLocality: job.city?.name || "Unknown",
         addressRegion: job.state?.name || "Unknown",
-        addressCountry: job.country || "IN",
-        ...(job.spa?.address
-          ? { streetAddress: job.spa.address }
-          : {}),
-        ...(job.postalCode
-          ? { postalCode: job.postalCode }
-          : {}),
+        addressCountry: "IN",
+        ...(job.spa?.address && { streetAddress: job.spa.address }),
+        ...(job.postalCode && { postalCode: job.postalCode }),
       },
     },
 
-    ...(job.salary_min
-      ? {
-        baseSalary: {
-          "@type": "MonetaryAmount",
-          currency: job.salary_currency || "INR",
-          value: {
-            "@type": "QuantitativeValue",
-            value: Number(job.salary_min),
-            unitText: "YEAR",
-          },
-        },
-      }
-      : {}),
+    applicantLocationRequirements: {
+      "@type": "Country",
+      name: "India",
+    },
 
-    ...(job.experience_years_min
-      ? {
-        experienceRequirements: {
-          "@type": "OccupationalExperienceRequirements",
-          monthsOfExperience: job.experience_years_min * 12,
+    ...(job.salary_min && {
+      estimatedSalary: {
+        "@type": "MonetaryAmount",
+        currency: job.salary_currency || "INR",
+        value: {
+          "@type": "QuantitativeValue",
+          minValue: Number(job.salary_min),
+          ...(job.salary_max && { maxValue: Number(job.salary_max) }),
+          unitText: "YEAR",
         },
-      }
-      : {}),
+      },
+    }),
 
-    ...(job.key_skills
-      ? {
-        skills: job.key_skills
-          .split(",")
-          .map(skill => skill.trim())
-          .filter(Boolean),
-      }
-      : {}),
+    ...(job.salary_min && {
+      baseSalary: {
+        "@type": "MonetaryAmount",
+        currency: job.salary_currency || "INR",
+        value: {
+          "@type": "QuantitativeValue",
+          value: Number(job.salary_min),
+          unitText: "YEAR",
+        },
+      },
+    }),
+
+    ...(job.experience_years_min && {
+      experienceRequirements: {
+        "@type": "OccupationalExperienceRequirements",
+        monthsOfExperience: job.experience_years_min * 12,
+      },
+    }),
+
+    ...(job.key_skills && {
+      skills: job.key_skills
+        .split(',')
+        .map(skill => skill.trim())
+        .filter(Boolean),
+    }),
   };
+
 
 
   return (
@@ -373,6 +432,10 @@ export default function JobDetailPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jobSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <script
         type="application/ld+json"

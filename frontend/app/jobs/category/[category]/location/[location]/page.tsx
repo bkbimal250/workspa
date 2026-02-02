@@ -1,237 +1,192 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import JobCard from '@/components/JobCard';
 import { jobAPI, Job } from '@/lib/job';
+import { parseLocationSlugSmart, formatLocationName, findLocationIds } from '@/lib/location-utils';
+import SEOHead from '@/components/SEOHead';
 import axios from 'axios';
+import Link from 'next/link';
+import Pagination from '@/components/Pagination';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function CategoryLocationJobsPage() {
   const params = useParams();
-  const category = params?.category as string;
-  const location = params?.location as string;
-  
+  const categorySlug = params?.category as string;
+  const locationSlug = params?.location as string;
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobCount, setJobCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [locationName, setLocationName] = useState<string>('');
   const [categoryName, setCategoryName] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+  const [locationNames, setLocationNames] = useState<{
+    area?: string;
+    city?: string;
+    state?: string;
+  }>({});
+  const [locationIds, setLocationIds] = useState<{
+    areaId?: number;
+    cityId?: number;
+    stateId?: number;
+  }>({});
 
   useEffect(() => {
-    if (category && location) {
-      fetchJobs();
-      fetchJobCount();
-      fetchLocationAndCategoryNames();
+    if (categorySlug && locationSlug) {
+      fetchInitialData();
     }
-  }, [category, location]);
+  }, [categorySlug, locationSlug]);
 
-  const fetchJobs = async () => {
+  const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const params_query: any = {
-        limit: 50,
-        job_category: category,
+      // 1. Fetch category data to get correct name for filtering
+      let actualCategoryName = categorySlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      try {
+        const categories = await jobAPI.getJobCategories(0, 500);
+        const matchingCategory = categories.find(c =>
+          c.slug === categorySlug ||
+          c.name.toLowerCase() === categorySlug.replace(/-/g, ' ')
+        );
+        if (matchingCategory) {
+          actualCategoryName = matchingCategory.name;
+        }
+      } catch (catErr) {
+        console.error('Error matching category:', catErr);
+      }
+      setCategoryName(actualCategoryName);
+
+      // 2. Fetch location data and IDs
+      const parsed = await parseLocationSlugSmart(locationSlug);
+      const ids = {
+        areaId: parsed.areaId,
+        cityId: parsed.cityId,
+        stateId: parsed.stateId,
       };
 
-      // Try to find city by slug
-      try {
-        const { locationAPI } = await import('@/lib/location');
-        const cities = await locationAPI.getCities();
-        const city = cities.find((c: any) => c.slug === location);
-        if (city) {
-          params_query.city_id = city.id;
-          setLocationName(city.name);
-        } else {
-          setLocationName(location.replace(/-/g, ' '));
-        }
-      } catch (err) {
-        setLocationName(location.replace(/-/g, ' '));
+      if (!ids.areaId && !ids.cityId && !ids.stateId) {
+        const foundIds = await findLocationIds(parsed.area, parsed.city, parsed.state);
+        ids.areaId = foundIds.areaId;
+        ids.cityId = foundIds.cityId;
+        ids.stateId = foundIds.stateId;
       }
 
-      const data = await jobAPI.getAllJobs(params_query);
-      setJobs(data);
+      setLocationIds(ids);
+      setLocationNames({
+        area: parsed.area,
+        city: parsed.city,
+        state: parsed.state,
+      });
+      setLocationName(parsed.area || parsed.city || parsed.state || formatLocationName(locationSlug));
+
+      // 3. Robust Job Fetching
+      await fetchAndFilterJobs(actualCategoryName, ids, parsed);
+
     } catch (error) {
-      console.error('Error fetching jobs:', error);
+      console.error('Error in fetchInitialData:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchJobCount = async () => {
+  const fetchAndFilterJobs = async (catName: string, locIds: any, parsedLoc: any) => {
     try {
-      const params_query: any = {
-        job_category: category,
+      const baseParams: any = {
+        limit: 1000,
+        is_active: true,
       };
 
-      // Try to find city by slug
-      try {
-        const { locationAPI } = await import('@/lib/location');
-        const cities = await locationAPI.getCities();
-        const city = cities.find((c: any) => c.slug === location);
-        if (city) {
-          params_query.city_id = city.id;
-        }
-      } catch (err) {
-        // Ignore
+      let data: Job[] = [];
+
+      // Stage 1: Try with Category Name AND Location IDs
+      const stage1Params = { ...baseParams, job_category: catName };
+      if (locIds.areaId) stage1Params.area_id = locIds.areaId;
+      else if (locIds.cityId) stage1Params.city_id = locIds.cityId;
+      else if (locIds.stateId) stage1Params.state_id = locIds.stateId;
+
+      data = await jobAPI.getAllJobs(stage1Params);
+
+      // Stage 2: If 0 jobs, try Category Name WITHOUT location IDs (will filter on client)
+      if (data.length === 0) {
+        data = await jobAPI.getAllJobs({ ...baseParams, job_category: catName });
       }
 
-      const response = await axios.get(`${API_URL}/api/jobs/count`, { params: params_query });
-      setJobCount(response.data.count);
+      // Stage 3: If still 0, try with Slug instead of Name
+      if (data.length === 0) {
+        data = await jobAPI.getAllJobs({ ...baseParams, job_category: categorySlug });
+      }
+
+      // Stage 4: If still 0, try Category as search query
+      if (data.length === 0) {
+        data = await jobAPI.getAllJobs({ ...baseParams, q: catName });
+      }
+
+      // Fuzzy Client-side filtering (Robust fallback)
+      const catLower = catName.toLowerCase();
+      const slugLower = categorySlug.toLowerCase();
+      const cityLower = (parsedLoc.city || '').toLowerCase();
+      const areaLower = (parsedLoc.area || '').toLowerCase();
+
+      let filtered = data.filter((job: Job) => {
+        if (!job.is_active) return false;
+
+        const jobCatName = (typeof job.job_category === 'string' ? job.job_category : job.job_category?.name || '').toLowerCase();
+        const jobTitle = job.title.toLowerCase();
+        const jobCity = (job.city?.name || '').toLowerCase();
+        const jobArea = (job.area?.name || '').toLowerCase();
+        const jobState = (job.state?.name || '').toLowerCase();
+
+        const matchesCategory = jobCatName.includes(catLower) || jobCatName.includes(slugLower) ||
+          jobTitle.includes(catLower) || jobTitle.includes(slugLower);
+
+        const matchesLocation = (!cityLower && !areaLower) ? true :
+          (jobCity.includes(cityLower) || jobArea.includes(areaLower) || jobState.includes(cityLower) ||
+            cityLower.includes(jobCity) || areaLower.includes(jobArea));
+
+        return matchesCategory && matchesLocation;
+      });
+
+      setJobs(filtered);
+      setJobCount(filtered.length);
     } catch (error) {
-      console.error('Error fetching job count:', error);
+      console.error('Error in fetchAndFilterJobs:', error);
+      setJobs([]);
+      setJobCount(0);
     }
   };
 
-  const fetchLocationAndCategoryNames = async () => {
-    try {
-      // Fetch category name
-      setCategoryName(category.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-    } catch (error) {
-      console.error('Error fetching names:', error);
-    }
-  };
-
-  // Generate structured data for SEO
+  // SEO Metadata
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
-  const pageUrl = `${siteUrl}/jobs/category/${category}/location/${location}`;
-  
-  const collectionPageSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
-    name: `${categoryName} Jobs in ${locationName}`,
-    description: `Find ${jobCount}+ ${categoryName} jobs in ${locationName}. Browse and apply to the best Work Spa near you.`,
-    url: pageUrl,
-    mainEntity: {
-      '@type': 'ItemList',
-      numberOfItems: jobCount,
-      itemListElement: jobs.slice(0, 10).map((job, index) => {
-        // Helper function to normalize employment type
-        const normalizeEmploymentType = (type: string): string => {
-          const normalized = type?.toUpperCase().trim() || 'FULL_TIME';
-          const validTypes = ['FULL_TIME', 'PART_TIME', 'CONTRACTOR', 'TEMPORARY', 'INTERN', 'VOLUNTEER', 'PER_DIEM', 'OTHER'];
-          const typeMap: Record<string, string> = {
-            'FULL TIME': 'FULL_TIME', 'PART TIME': 'PART_TIME', 'FULLTIME': 'FULL_TIME', 'PARTTIME': 'PART_TIME',
-            'FULL-TIME': 'FULL_TIME', 'PART-TIME': 'PART_TIME',
-          };
-          const mapped = typeMap[normalized] || normalized;
-          return validTypes.includes(mapped) ? mapped : 'FULL_TIME';
-        };
+  const pageUrl = `${siteUrl}/jobs/category/${categorySlug}/location/${locationSlug}`;
+  const metaTitle = `${categoryName} Jobs in ${locationName} | Workspa.in`;
+  const metaDescription = `Browse ${jobCount > 0 ? jobCount : ''} ${categoryName} job openings in ${locationName}. Apply directly to top spas and wellness centers. No login required.`;
 
-        return {
-          '@type': 'ListItem',
-          position: index + 1,
-          item: {
-            '@type': 'JobPosting',
-            title: job.title,
-            description: job.description?.substring(0, 200) || '',
-            identifier: {
-              '@type': 'PropertyValue',
-              name: job.spa?.name || 'SPA',
-              value: job.id.toString(),
-            },
-            datePosted: job.created_at,
-            validThrough: (job as any).expires_at || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-            employmentType: normalizeEmploymentType((job as any).Employee_type || 'FULL_TIME'),
-            hiringOrganization: {
-              '@type': 'Organization',
-              name: job.spa?.name || 'SPA',
-              ...(job.spa?.logo_image && {
-                logo: `${API_URL}${job.spa.logo_image.startsWith('/') ? job.spa.logo_image : `/${job.spa.logo_image}`}`
-              }),
-              ...(job.spa?.slug && { sameAs: `${siteUrl}/besttopspas/${job.spa.slug}` }),
-            },
-            jobLocation: {
-              '@type': 'Place',
-              address: {
-                '@type': 'PostalAddress',
-                ...(job.spa?.address && { streetAddress: job.spa.address }),
-                addressLocality: job.city?.name || locationName,
-                addressRegion: job.state?.name || '',
-                postalCode: job.postalCode || '',
-                addressCountry: job.country?.name || 'IN',
-              },
-            },
-            ...(job.salary_min && {
-              baseSalary: {
-                '@type': 'MonetaryAmount',
-                currency: job.salary_currency || 'INR',
-                value: {
-                  '@type': 'QuantitativeValue',
-                  value: job.salary_min,
-                  unitText: 'YEAR',
-                },
-              },
-            }),
-          },
-        };
-      }),
-    },
-  };
-
-  const breadcrumbSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: 'Home',
-        item: siteUrl,
-      },
-      {
-        '@type': 'ListItem',
-        position: 2,
-        name: 'Jobs',
-        item: `${siteUrl}/jobs`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 3,
-        name: `${categoryName} Jobs`,
-        item: `${siteUrl}/jobs?job_category=${category}`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 4,
-        name: `${categoryName} Jobs in ${locationName}`,
-        item: pageUrl,
-      },
-    ],
-  };
+  const paginatedJobs = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return jobs.slice(startIndex, startIndex + itemsPerPage);
+  }, [jobs, currentPage]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Structured Data for SEO */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
+      <SEOHead title={metaTitle} description={metaDescription} url={pageUrl} />
       <Navbar />
 
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            {categoryName} Jobs in {locationName}
-          </h1>
-          <p className="text-xl sm:text-2xl text-blue-100">
-            {jobCount > 0 ? `${jobCount}+ jobs available` : 'Apply jobs for first call'}
-          </p>
+      <div className="bg-brand-800 text-white py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">{categoryName} Jobs in {locationName}</h1>
+          <p className="text-xl sm:text-2xl text-white/90">{jobCount > 0 ? `${jobCount} jobs found` : 'Find your next spa career'}</p>
         </div>
       </div>
 
-      {/* Job Listings */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {loading ? (
           <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
                 <div className="flex items-start gap-4">
                   <div className="w-14 h-14 bg-gray-200 rounded-lg"></div>
@@ -245,52 +200,50 @@ export default function CategoryLocationJobsPage() {
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <div className="bg-white rounded-lg p-12 text-center border shadow-sm">
             <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No jobs found</h3>
-            <p className="text-gray-600">Try adjusting your search criteria</p>
+            <h3 className="text-xl font-semibold mb-2">No {categoryName} jobs found in {locationName}</h3>
+            <p className="text-gray-600 mb-6">Try browsing all jobs to find more opportunities</p>
+            <Link href="/jobs" className="btn-primary px-6 py-2 inline-block">Browse all jobs →</Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {jobs.map((job) => (
-              <JobCard
-                key={job.id}
-                id={job.id}
-                title={job.title}
-                spaName={job.spa?.name}
-                spaAddress={job.spa?.address}
-                location={
-                  (() => {
-                    const locationParts = [];
-                    if (job.area?.name) locationParts.push(job.area.name);
-                    if (job.city?.name) locationParts.push(job.city.name);
-                    return locationParts.length > 0 ? locationParts.join(', ') : 'Location not specified';
-                  })()
-                }
-                salaryMin={job.salary_min}
-                salaryMax={job.salary_max}
-                salaryCurrency={job.salary_currency}
-                experienceMin={job.experience_years_min}
-                experienceMax={job.experience_years_max}
-                jobOpeningCount={job.job_opening_count}
-                jobType={typeof job.job_type === 'string' ? job.job_type : job.job_type?.name}
-                jobCategory={typeof job.job_category === 'string' ? job.job_category : job.job_category?.name}
-                slug={job.slug}
-                isFeatured={job.is_featured}
-                viewCount={job.view_count}
-                created_at={job.created_at}
-                description={job.description}
+          <>
+            <div className="space-y-4">
+              {paginatedJobs.map(job => (
+                <JobCard
+                  key={job.id}
+                  id={job.id}
+                  title={job.title}
+                  slug={job.slug}
+                  spaName={job.spa?.name}
+                  spaAddress={job.spa?.address}
+                  location={[job.area?.name, job.city?.name].filter(Boolean).join(', ') || 'Location not specified'}
+                  salaryMin={job.salary_min}
+                  salaryMax={job.salary_max}
+                  salaryCurrency={job.salary_currency}
+                  experienceMin={job.experience_years_min}
+                  experienceMax={job.experience_years_max}
+                  jobType={typeof job.job_type === 'string' ? job.job_type : job.job_type?.name}
+                  jobCategory={typeof job.job_category === 'string' ? job.job_category : job.job_category?.name}
+                  logoImage={job.spa?.logo_image}
+                  created_at={job.created_at}
+                  description={job.description}
                   hr_contact_phone={job.hr_contact_phone}
                   required_gender={job.required_gender}
                   job_timing={job.job_timing}
                 />
-            ))}
-          </div>
+              ))}
+            </div>
+            {jobs.length > itemsPerPage && (
+              <div className="mt-8">
+                <Pagination currentPage={currentPage} totalItems={jobs.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
   );
 }
-

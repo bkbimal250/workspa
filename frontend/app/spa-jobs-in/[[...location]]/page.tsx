@@ -250,6 +250,30 @@ export default function LocationJobsPage() {
     },
   };
 
+  // Generate FAQ schema for Location page
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: `Where can I find the best spa jobs in ${locationDisplayName}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `You can find a variety of spa therapist, masseuse, and spa manager jobs in ${locationDisplayName} on Workspa.in. Use our filters to find roles that match your experience and salary expectations.`
+        }
+      },
+      {
+        "@type": "Question",
+        name: `Are there high-paying spa jobs in ${locationDisplayName}?`,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Yes, there are several high-paying opportunities in ${locationDisplayName}. You can sort jobs by 'Salary' on Workspa.in to see the best-paying roles first.`
+        }
+      }
+    ]
+  };
+
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -296,6 +320,10 @@ export default function LocationJobsPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionPageSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <script
         type="application/ld+json"
