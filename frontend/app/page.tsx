@@ -61,9 +61,9 @@ export default function HomePage() {
       const categories = await jobAPI.getJobCategories();
       // Filter for the specific categories we want to show
       const targetCategoryNames = ['Spa Therapist', 'Spa Receptionist', 'Spa Manager', 'Beautician'];
-      const filtered = categories.filter(cat => 
-        targetCategoryNames.some(name => 
-          cat.name.toLowerCase().includes(name.toLowerCase()) || 
+      const filtered = categories.filter(cat =>
+        targetCategoryNames.some(name =>
+          cat.name.toLowerCase().includes(name.toLowerCase()) ||
           name.toLowerCase().includes(cat.name.toLowerCase())
         )
       );
@@ -180,18 +180,18 @@ export default function HomePage() {
   // Generate enhanced meta description with job examples
   const enhancedDescription = useMemo(() => {
     const baseDescription = "Find the best Work Spa near you. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience.";
-    
+
     // Get jobs for examples (combine featured and popular, take first 3-4 unique ones)
     const allJobs = [...featuredJobs, ...popularJobs];
     const uniqueJobs = Array.from(
       new Map(allJobs.map(job => [job.id, job])).values()
     ).slice(0, 4);
-    
+
     if (uniqueJobs.length > 0 && !loadingFeatured && !loadingPopular) {
       const jobExamples = uniqueJobs.map(job => {
         const jobTitle = job.title || 'Spa Job';
         let salaryText = '';
-        
+
         if (job.salary_min && job.salary_max) {
           const minK = Math.round(job.salary_min / 1000);
           const maxK = Math.round(job.salary_max / 1000);
@@ -200,13 +200,13 @@ export default function HomePage() {
           const minK = Math.round(job.salary_min / 1000);
           salaryText = ` · ₹${minK}k+`;
         }
-        
+
         return `${jobTitle}${salaryText}`;
       }).join('; ');
-      
+
       return `${baseDescription} ${jobExamples}. Search for therapist, masseuse, and spa manager positions.`;
     }
-    
+
     return `${baseDescription} Search for therapist, masseuse, and spa manager positions.`;
   }, [featuredJobs, popularJobs, loadingFeatured, loadingPopular]);
 
@@ -247,6 +247,11 @@ export default function HomePage() {
           'therapist jobs in thane',
           'therapist jobs in vashi',
           'therapist jobs in bandra',
+          'therapist jobs in malad',
+          'therapist jobs in borivali',
+          'therapist jobs in kandivali',
+          'therapist jobs in mira road',
+          'therapist jobs in mira road',
           'female therapist jobs in mumbai',
           'female therapist jobs in navi mumbai',
           'female therapist jobs in thane',
@@ -257,7 +262,7 @@ export default function HomePage() {
           'female receptionist jobs in thane',
           'female receptionist jobs in vashi',
           'female receptionist jobs in bandra',
-          'spa hiring in thane',
+          'spa jobs hiring in thane',
           'work spa mumbai',
           'work spa navi mumbai',
           'work spa thane',
@@ -280,7 +285,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
       />
       <Navbar />
-      
+
       {/* Hero Section with Search */}
       <div className="bg-brand-800 text-white relative overflow-hidden">
         {/* Decorative background elements - fixed dimensions to prevent CLS */}
@@ -297,7 +302,7 @@ export default function HomePage() {
               Verified spa jobs in Mumbai, Navi Mumbai, Thane, Vashi, Bandra, Panvel, Airoli, Sanpada, Kharghar, Belapur, Mulund, Dadar, Kurla & more
             </p>
           </div>
-          
+
           {/* Search Bar - removed hover scale to prevent CLS */}
           <div className="max-w-5xl mx-auto mb-6 sm:mb-8">
             <SearchBar />
@@ -307,7 +312,7 @@ export default function HomePage() {
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-8 sm:mt-10 text-xs sm:text-sm md:text-base px-4">
             {quickLinkCategories.length > 0 ? (
               quickLinkCategories.map((category) => (
-                <Link 
+                <Link
                   key={category.id || category.name}
                   href={`/jobs?job_category=${encodeURIComponent(category.name)}`}
                   className="text-white/80 hover:text-white underline transition-colors font-medium px-2 py-1"
@@ -332,7 +337,7 @@ export default function HomePage() {
               </>
             )}
           </div>
-          
+
         </div>
       </div>
 
@@ -354,12 +359,12 @@ export default function HomePage() {
 
         <ProcessPage />
 
-   <Areasjobs />
+        <Areasjobs />
 
       </div>
 
 
-      
+
     </div>
   );
 }

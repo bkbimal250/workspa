@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Footer from '@/components/Footer'
@@ -10,54 +11,111 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl || 'https://workspa.in'),
+
   title: {
-    default: 'Apply for Spa Jobs in India | Apply Female spa therapist jobs | Apply spa manager jobs | Work Spa Portal',
-    template: '%s | Apply for Spa Jobs in India | Apply Female spa therapist jobs | Apply spa manager jobs | Work Spa Portal'
+    default: 'Female Spa Therapist Jobs in Mumbai, Navi Mumbai & Thane | Workspa',
+    template: '%s | Female Spa Therapist Jobs in Mumbai, Navi Mumbai & Thane | Workspa'
   },
-  description: 'Find the best Work Spa near you. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience. Search for therapist, masseuse, and spa manager positions.',
+
+  description:
+    'Find female spa therapist, spa receptionist, beautician, and spa manager jobs in Mumbai, Navi Mumbai, and Thane. Apply to spa job vacancies near you without login. Explore latest spa hiring in all Mumbai areas.',
+
   keywords: [
-    'Apply for Spa Jobs in India', 'Apply Female spa therapist jobs', 'Apply spa manager jobs', 'Work Spa in india', 'spa job vacancy', 'spa job near me',
-    'spa therapist jobs', 'massage therapist jobs', 'spa manager jobs',
-    'beauty Work Spa', 'wellness jobs india', 'luxury Work Spa',
-    'female therapist jobs', 'male therapist jobs', 'spa hiring today',
-    'spa receptionist jobs', 'spa housekeeping jobs', 'beauty therapist jobs',
-    'Work Spa Mumbai', 'Work Spa Delhi', 'Work Spa Bangalore',
-    'Work Spa near me', 'spa careers', 'spa employment', 'spa hiring'
+    // Primary job roles
+    'female spa therapist jobs Mumbai',
+    'female spa therapist jobs Navi Mumbai',
+    'female spa therapist jobs Thane',
+
+    'spa receptionist jobs Mumbai',
+    'female spa receptionist jobs Mumbai',
+
+    'beautician jobs Mumbai',
+    'beautician jobs Navi Mumbai',
+    'beautician jobs Thane',
+
+    'spa manager jobs Mumbai',
+    'male spa manager jobs Mumbai',
+
+    // Location specific
+    'spa jobs Mumbai',
+    'spa jobs Navi Mumbai',
+    'spa jobs Thane',
+
+    'spa jobs near me Mumbai',
+    'spa jobs near me Navi Mumbai',
+    'spa jobs near me Thane',
+
+    // Area based intent
+    'spa job vacancy Mumbai',
+    'spa job vacancy Navi Mumbai',
+    'spa job vacancy Thane',
+
+    'spa therapist jobs near me',
+    'spa hiring Mumbai',
+    'spa hiring Navi Mumbai',
+    'spa hiring Thane',
+
+    // Industry keywords
+    'wellness jobs Mumbai',
+    'spa careers Mumbai',
+    'massage therapist jobs Mumbai',
+
+    // Brand
+    'Workspa jobs',
+    'Workspa Mumbai',
+    'Workspa Navi Mumbai',
+    'Workspa Thane'
   ],
-  authors: [{ name: 'Workspa - Work Spa Portal' }],
-  creator: 'Workspa - Work Spa Portal',
-  publisher: 'Workspa - Work Spa Portal',
+
+  authors: [{ name: 'Workspa - Spa Job Portal Mumbai' }],
+  creator: 'Workspa',
+  publisher: 'Workspa',
+
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
+
   openGraph: {
     type: 'website',
     locale: 'en_IN',
     url: siteUrl,
-    siteName: 'Workspa - Work Spa Portal',
-    title: 'Apply for Spa Jobs in India | Apply Female spa therapist jobs | Apply spa manager jobs | Work Spa Portal',
-    description: 'Find the best Work Spa near you. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience.',
+    siteName: 'Workspa - Spa Jobs Mumbai',
+
+    title:
+      'Female Spa Therapist, Receptionist & Beautician Jobs in Mumbai | Workspa',
+
+    description:
+      'Apply for female spa therapist, spa receptionist, beautician, and spa manager jobs in Mumbai, Navi Mumbai, and Thane. Find spa jobs near you and apply instantly.',
+
     images: [
       {
         url: `${siteUrl}/og-image.jpg`,
         width: 1200,
         height: 630,
-        alt: 'Work Spa Portal - Find Your Dream Spa Job',
+        alt: 'Workspa - Spa Jobs in Mumbai',
       },
     ],
   },
+
   twitter: {
     card: 'summary_large_image',
-    title: 'Apply for Spa Jobs in India | Apply Female spa therapist jobs | Apply spa manager jobs | Work Spa Portal',
-    description: 'Apply for Spa Jobs in India. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience. Search for therapist, masseuse, and spa manager positions.',
+
+    title:
+      'Spa Therapist & Beautician Jobs in Mumbai, Navi Mumbai & Thane | Workspa',
+
+    description:
+      'Find female spa therapist, receptionist, beautician, and spa manager jobs in Mumbai, Navi Mumbai, and Thane. Apply to latest spa job vacancies near you.',
+
     images: [`${siteUrl}/og-image.jpg`],
-    creator: '@spajobs',
+    creator: '@workspa',
   },
+
   robots: {
     index: true,
     follow: true,
+
     googleBot: {
       index: true,
       follow: true,
@@ -66,26 +124,29 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,
     yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION,
   },
+
   alternates: {
     canonical: siteUrl,
   },
-  category: 'Job Portal',
+
+  category: 'Spa Job Portal Mumbai',
+
   icons: {
     icon: [
       { url: '/favicon.png', type: 'image/png' },
       { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
       { url: '/favicon.png', type: 'image/png', sizes: '16x16' },
     ],
-    apple: [
-      { url: '/favicon.png', type: 'image/png' },
-    ],
+    apple: [{ url: '/favicon.png', type: 'image/png' }],
     shortcut: '/favicon.png',
   },
 }
+
 
 export default function RootLayout({
   children,
@@ -102,6 +163,20 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
       </head>
       <body>
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-TRM88503RP"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-TRM88503RP');
+          `}
+        </Script>
         <AuthProvider>
           <div className="flex flex-col min-h-screen">
             <main className="flex-1">
