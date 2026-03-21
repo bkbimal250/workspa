@@ -84,23 +84,17 @@ function MessagesContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // Update URL params when state changes (but skip when syncing from URL)
-  const [isInitialSync, setIsInitialSync] = useState(true);
-  
+  // Update URL params when state changes
   useEffect(() => {
-    // Skip the first sync since we already initialized from URL
-    if (isInitialSync) {
-      setIsInitialSync(false);
-      return;
-    }
+    // Skip if we're currently syncing from URL to avoid loops
+    if (isSyncingFromUrlRef.current) return;
     
-    // Skip if we're currently syncing from URL
-    if (isSyncingFromUrlRef.current) {
-      return;
+    const params = new URLSearchParams(window.location.search);
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString());
+    } else {
+      params.delete('page');
     }
-    
-    const params = new URLSearchParams();
-    if (currentPage > 1) params.set('page', currentPage.toString());
     
     const queryString = params.toString();
     const newUrl = queryString ? `/dashboard/messages?${queryString}` : '/dashboard/messages';
@@ -108,17 +102,19 @@ function MessagesContent() {
     // Get current URL to compare
     const currentUrl = window.location.pathname + (window.location.search || '');
     if (newUrl !== currentUrl) {
-      // Use replace to avoid adding history entries, but preserve back button functionality
       router.replace(newUrl, { scroll: false });
     }
-  }, [currentPage, router, isInitialSync]);
+  }, [currentPage, router]);
 
   // Reset to page 1 when filters or tab changes
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    if (!isInitialSync && currentPage !== 1) {
-      setCurrentPage(1);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
-  }, [selectedStatus, selectedJobId, searchTerm, activeTab, isInitialSync, currentPage]);
+    setCurrentPage(1);
+  }, [selectedStatus, selectedJobId, searchTerm, activeTab]);
 
   useEffect(() => {
     if (!authLoading && !user) {
