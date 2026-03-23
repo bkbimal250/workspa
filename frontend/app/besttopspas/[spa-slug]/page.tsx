@@ -147,7 +147,7 @@ export default function SpaDetailPage() {
   }
 
   // These variables are safe to use here since we've checked spa is not null above
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://spajob.api.spajob.spajobs.co.in';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.backend.workspa.in';
   const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
   const allImages = spa.logo_image
     ? [spa.logo_image, ...(spa.spa_images || [])]
@@ -299,13 +299,13 @@ export default function SpaDetailPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(spaSchema) }}
       />
-      
+
       {/* Breadcrumb Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
-      
+
       {/* Job Posting Schemas - Separate schema for each job (Google best practice) */}
       {jobSchemas.map((jobSchema, index) => (
         <script
@@ -314,7 +314,7 @@ export default function SpaDetailPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jobSchema) }}
         />
       ))}
-      
+
       <Navbar />
 
       <SpaHeroBanner
@@ -360,7 +360,7 @@ export default function SpaDetailPage() {
             <SpaContactCard spa={spa} />
             <SpaOperatingHours spa={spa} />
             <SpaLocationMap spa={spa} />
-            
+
             {/* Employer CTA */}
             <div className="bg-gradient-to-br from-brand-50 to-gold-50 rounded-xl border-2 border-brand-200 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-2">Own this SPA?</h3>

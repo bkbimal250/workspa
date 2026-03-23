@@ -7,10 +7,10 @@ import Navbar from '@/components/Navbar';
 import { messageAPI, Message } from '@/lib/message';
 import { contactAPI, ContactResponse } from '@/lib/contact';
 import Pagination from '@/components/Pagination';
-import { 
-  FaEnvelope, 
-  FaEnvelopeOpen, 
-  FaReply, 
+import {
+  FaEnvelope,
+  FaEnvelopeOpen,
+  FaReply,
   FaCheckCircle,
   FaClock,
   FaBriefcase,
@@ -57,7 +57,7 @@ function MessagesContent() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(
     parseInt(searchParams.get('page') || '1', 10)
@@ -70,13 +70,13 @@ function MessagesContent() {
   // Sync state from URL params when they change (e.g., browser back/forward)
   useEffect(() => {
     const urlPage = parseInt(searchParams.get('page') || '1', 10);
-    
+
     // Mark that we're syncing from URL
     isSyncingFromUrlRef.current = true;
-    
+
     // Only update if different
     setCurrentPage(urlPage);
-    
+
     // Reset the flag after a brief delay
     requestAnimationFrame(() => {
       isSyncingFromUrlRef.current = false;
@@ -88,17 +88,17 @@ function MessagesContent() {
   useEffect(() => {
     // Skip if we're currently syncing from URL to avoid loops
     if (isSyncingFromUrlRef.current) return;
-    
+
     const params = new URLSearchParams(window.location.search);
     if (currentPage > 1) {
       params.set('page', currentPage.toString());
     } else {
       params.delete('page');
     }
-    
+
     const queryString = params.toString();
     const newUrl = queryString ? `/dashboard/messages?${queryString}` : '/dashboard/messages';
-    
+
     // Get current URL to compare
     const currentUrl = window.location.pathname + (window.location.search || '');
     if (newUrl !== currentUrl) {
@@ -140,7 +140,7 @@ function MessagesContent() {
       const params: any = {};
       if (selectedStatus) params.status = selectedStatus;
       if (selectedJobId) params.job_id = selectedJobId;
-      
+
       const data = await messageAPI.getMessages({ ...params, limit: 1000 });
       console.log('Fetched messages:', data); // Debug log
       setMessages(Array.isArray(data) ? data : []);
@@ -185,7 +185,7 @@ function MessagesContent() {
     try {
       const params: any = { limit: 1000 };
       if (selectedStatus) params.status = selectedStatus;
-      
+
       const data = await contactAPI.getContacts(params);
       console.log('Fetched contact messages:', data);
       setContactMessages(Array.isArray(data) ? data : []);
@@ -336,11 +336,10 @@ function MessagesContent() {
           <div className="flex gap-2 mb-6 border-b border-gray-200">
             <button
               onClick={() => setActiveTab('job-messages')}
-              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                activeTab === 'job-messages'
+              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === 'job-messages'
                   ? 'border-brand-600 text-brand-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2">
                 <FaBriefcase size={16} />
@@ -354,11 +353,10 @@ function MessagesContent() {
             </button>
             <button
               onClick={() => setActiveTab('contact-messages')}
-              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${
-                activeTab === 'contact-messages'
+              className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === 'contact-messages'
                   ? 'border-brand-600 text-brand-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2">
                 <FaAddressCard size={16} />
@@ -408,7 +406,7 @@ function MessagesContent() {
                   </div>
                   <input
                     type="text"
-                    placeholder={activeTab === 'job-messages' 
+                    placeholder={activeTab === 'job-messages'
                       ? "Search by name, phone, email, message, or job title..."
                       : "Search by name, phone, email, message, or subject..."}
                     value={searchTerm}
@@ -481,151 +479,151 @@ function MessagesContent() {
 
               <div className="divide-y divide-gray-200">
                 {paginatedMessages.map((message: any) => {
-                const statusInfo = statusConfig[message.status] || statusConfig.new;
-                const StatusIcon = statusInfo.icon;
-                const isJobMessage = activeTab === 'job-messages';
-                const senderName = isJobMessage ? message.sender_name : message.name;
+                  const statusInfo = statusConfig[message.status] || statusConfig.new;
+                  const StatusIcon = statusInfo.icon;
+                  const isJobMessage = activeTab === 'job-messages';
+                  const senderName = isJobMessage ? message.sender_name : message.name;
 
-                return (
-                  <div
-                    key={message.id}
-                    className="p-5 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex flex-col lg:flex-row gap-4">
-                      {/* Main Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3 mb-3 flex-wrap">
-                          <div className={`px-3 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${statusInfo.color}`}>
-                            <StatusIcon size={12} />
-                            {statusInfo.label}
-                          </div>
-                          {isJobMessage && message.job && (
-                            <Link
-                              href={`/jobs/${message.job.slug}`}
-                              className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 hover:underline"
-                            >
-                              <FaBriefcase size={14} />
-                              <span className="font-medium">{message.job.title}</span>
-                            </Link>
-                          )}
-                          {!isJobMessage && message.subject && (
-                            <div className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium border border-purple-200">
-                              {message.subject}
+                  return (
+                    <div
+                      key={message.id}
+                      className="p-5 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex flex-col lg:flex-row gap-4">
+                        {/* Main Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3 mb-3 flex-wrap">
+                            <div className={`px-3 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${statusInfo.color}`}>
+                              <StatusIcon size={12} />
+                              {statusInfo.label}
                             </div>
-                          )}
-                        </div>
+                            {isJobMessage && message.job && (
+                              <Link
+                                href={`/jobs/${message.job.slug}`}
+                                className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 hover:underline"
+                              >
+                                <FaBriefcase size={14} />
+                                <span className="font-medium">{message.job.title}</span>
+                              </Link>
+                            )}
+                            {!isJobMessage && message.subject && (
+                              <div className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium border border-purple-200">
+                                {message.subject}
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="space-y-2 mb-3">
-                          <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <div className="text-gray-400">
-                              <FaUser size={14} />
+                          <div className="space-y-2 mb-3">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                              <div className="text-gray-400">
+                                <FaUser size={14} />
+                              </div>
+                              <span className="font-medium">{senderName}</span>
                             </div>
-                            <span className="font-medium">{senderName}</span>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <div className="text-gray-400">
+                                <FaPhone size={14} />
+                              </div>
+                              <span>{message.phone}</span>
+                              {message.email && (
+                                <>
+                                  <span className="text-gray-300">•</span>
+                                  <span>{message.email}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <div className="text-gray-400">
-                              <FaPhone size={14} />
+
+                          {message.message && (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{message.message}</p>
                             </div>
-                            <span>{message.phone}</span>
-                            {message.email && (
-                              <>
-                                <span className="text-gray-300">•</span>
-                                <span>{message.email}</span>
-                              </>
+                          )}
+
+                          <div className="flex flex-col gap-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1.5">
+                              <FaCalendarAlt size={12} />
+                              Created {formatDate(message.created_at)}
+                            </span>
+                            {message.read_at && (
+                              <span className="flex items-center gap-1.5 text-yellow-600">
+                                <FaEnvelopeOpen size={12} />
+                                Read {formatDate(message.read_at)}
+                                {isJobMessage && message.read_by_name && (
+                                  <span className="text-gray-600">by <span className="font-medium">{message.read_by_name}</span></span>
+                                )}
+                              </span>
+                            )}
+                            {message.replied_at && (
+                              <span className="flex items-center gap-1.5 text-green-600">
+                                <FaReply size={12} />
+                                Replied {formatDate(message.replied_at)}
+                                {isJobMessage && message.replied_by_name && (
+                                  <span className="text-gray-600">by <span className="font-medium">{message.replied_by_name}</span></span>
+                                )}
+                              </span>
                             )}
                           </div>
                         </div>
 
-                        {message.message && (
-                          <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{message.message}</p>
-                          </div>
-                        )}
-
-                        <div className="flex flex-col gap-2 text-xs text-gray-500">
-                          <span className="flex items-center gap-1.5">
-                            <FaCalendarAlt size={12} />
-                            Created {formatDate(message.created_at)}
-                          </span>
-                          {message.read_at && (
-                            <span className="flex items-center gap-1.5 text-yellow-600">
-                              <FaEnvelopeOpen size={12} />
-                              Read {formatDate(message.read_at)}
-                              {isJobMessage && message.read_by_name && (
-                                <span className="text-gray-600">by <span className="font-medium">{message.read_by_name}</span></span>
-                              )}
-                            </span>
+                        {/* Actions */}
+                        <div className="flex flex-col gap-2 lg:min-w-[200px]">
+                          {message.status === 'new' && (
+                            <button
+                              onClick={() => handleStatusUpdate(message.id, 'read')}
+                              className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                              <FaEnvelopeOpen size={14} />
+                              Mark as Read
+                            </button>
                           )}
-                          {message.replied_at && (
-                            <span className="flex items-center gap-1.5 text-green-600">
-                              <FaReply size={12} />
-                              Replied {formatDate(message.replied_at)}
-                              {isJobMessage && message.replied_by_name && (
-                                <span className="text-gray-600">by <span className="font-medium">{message.replied_by_name}</span></span>
-                              )}
-                            </span>
+                          {message.status === 'read' && (
+                            <button
+                              onClick={() => handleStatusUpdate(message.id, 'replied')}
+                              className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                              <FaReply size={14} />
+                              Mark as Replied
+                            </button>
+                          )}
+                          {message.status !== 'closed' && (
+                            <button
+                              onClick={() => handleStatusUpdate(message.id, 'closed')}
+                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                              <FaCheckCircle size={14} />
+                              Close
+                            </button>
+                          )}
+                          {message.status === 'closed' && (
+                            <button
+                              onClick={() => handleStatusUpdate(message.id, 'new')}
+                              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                              Reopen
+                            </button>
+                          )}
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to delete this ${activeTab === 'job-messages' ? 'job message' : 'contact message'}? This action cannot be undone.`)) {
+                                  handleDeleteMessage(message.id);
+                                }
+                              }}
+                              className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                              title="Delete Message"
+                            >
+                              <FaTrash size={14} />
+                              Delete
+                            </button>
                           )}
                         </div>
                       </div>
-
-                      {/* Actions */}
-                      <div className="flex flex-col gap-2 lg:min-w-[200px]">
-                        {message.status === 'new' && (
-                          <button
-                            onClick={() => handleStatusUpdate(message.id, 'read')}
-                            className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                          >
-                            <FaEnvelopeOpen size={14} />
-                            Mark as Read
-                          </button>
-                        )}
-                        {message.status === 'read' && (
-                          <button
-                            onClick={() => handleStatusUpdate(message.id, 'replied')}
-                            className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                          >
-                            <FaReply size={14} />
-                            Mark as Replied
-                          </button>
-                        )}
-                        {message.status !== 'closed' && (
-                          <button
-                            onClick={() => handleStatusUpdate(message.id, 'closed')}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                          >
-                            <FaCheckCircle size={14} />
-                            Close
-                          </button>
-                        )}
-                        {message.status === 'closed' && (
-                          <button
-                            onClick={() => handleStatusUpdate(message.id, 'new')}
-                            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                          >
-                            Reopen
-                          </button>
-                        )}
-                        {user?.role === 'admin' && (
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to delete this ${activeTab === 'job-messages' ? 'job message' : 'contact message'}? This action cannot be undone.`)) {
-                                handleDeleteMessage(message.id);
-                              }
-                            }}
-                            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                            title="Delete Message"
-                          >
-                            <FaTrash size={14} />
-                            Delete
-                          </button>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
               </div>
-              
+
               {/* Pagination */}
               {filteredMessages.length > itemsPerPage && (
                 <div className="px-5 py-4 border-t border-gray-200">

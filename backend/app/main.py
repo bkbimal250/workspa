@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+import asyncio
 
 from app.core.database import init_db
 from app.core.config import settings
@@ -42,10 +43,10 @@ app = FastAPI(
 # Middleware
 # -------------------------------------------------
 
-# GZip Compression
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# GZip
+app.add_middleware(GZipMiddleware, minimum_size=2000)
 
-# CORS Configuration
+# CORS (optimized)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -54,11 +55,11 @@ app.add_middleware(
         "https://workspa.in",
         "https://www.workspa.in",
     ],
-    allow_origin_regex=r"https://([a-z0-9-]+\.)*workspa\.in",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type",],
 )
+
 
 
 # -------------------------------------------------
@@ -81,7 +82,7 @@ app.mount(
 # -------------------------------------------------
 @app.on_event("startup")
 async def startup_event():
-    init_db()
+    await asyncio.to_thread(init_db)
 
 
 # -------------------------------------------------

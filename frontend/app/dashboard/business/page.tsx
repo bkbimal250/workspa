@@ -89,7 +89,7 @@ export default function BusinessPage() {
                   {spa.logo_image && (
                     <div className="mt-4">
                       <img
-                        src={`https://spajob.api.spajob.spajobs.co.in/${spa.logo_image}`}
+                        src={`https://api.backend.workspa.in/${spa.logo_image}`}
                         alt={spa.name}
                         className="w-full h-64 object-cover rounded-lg"
                       />
@@ -147,14 +147,12 @@ export default function BusinessPage() {
                 <div>
                   <h3 className="font-semibold text-gray-700 mb-2">Status</h3>
                   <div className="flex items-center space-x-4">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      spa.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${spa.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
                       {spa.is_active ? 'Active' : 'Inactive'}
                     </span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      spa.is_verified ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${spa.is_verified ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
                       {spa.is_verified ? 'Verified' : 'Not Verified'}
                     </span>
                   </div>
@@ -168,7 +166,7 @@ export default function BusinessPage() {
                     {spa.spa_images.map((image, index) => (
                       <img
                         key={index}
-                        src={`https://spajob.api.spajob.spajobs.co.in/${image}`}
+                        src={`https://api.backend.workspa.in/${image}`}
                         alt={`${spa.name} - Image ${index + 1}`}
                         className="w-full h-32 object-cover rounded-lg"
                       />

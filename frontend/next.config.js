@@ -23,7 +23,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'spajob.api.spajob.spajobs.co.in',
+        hostname: 'api.backend.workspa.in',
         pathname: '/uploads/**',
       },
 
