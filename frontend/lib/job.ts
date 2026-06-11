@@ -80,6 +80,13 @@ export const jobAPI = {
     job_type?: string;
     job_category?: string;
     is_featured?: boolean;
+    q?: string;
+    location?: string;
+    salary_min?: number;
+    salary_max?: number;
+    experience_years_min?: number;
+    experience_years_max?: number;
+    sort_by?: 'recent' | 'popular' | 'salary';
     latitude?: number;
     longitude?: number;
     radius_km?: number;
@@ -116,6 +123,16 @@ export const jobAPI = {
 
   getPopularJobs: async (limit: number = 10): Promise<Job[]> => {
     const response = await apiClient.get(`/api/jobs/popular`, { params: { limit } });
+    return response.data;
+  },
+
+  getRecentJobs: async (limit: number = 10): Promise<Job[]> => {
+    const response = await apiClient.get(`/api/jobs/recent`, { params: { limit } });
+    return response.data;
+  },
+
+  getRelatedJobs: async (jobId: number, limit: number = 6): Promise<Job[]> => {
+    const response = await apiClient.get(`/api/jobs/related/${jobId}`, { params: { limit } });
     return response.data;
   },
 
@@ -173,6 +190,12 @@ export const jobAPI = {
     area_id?: number;
     job_type?: string;
     job_category?: string;
+    q?: string;
+    location?: string;
+    salary_min?: number;
+    salary_max?: number;
+    experience_years_min?: number;
+    experience_years_max?: number;
   }): Promise<{ count: number }> => {
     const response = await apiClient.get(`/api/jobs/count`, { params });
     return response.data;

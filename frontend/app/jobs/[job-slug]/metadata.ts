@@ -66,7 +66,7 @@ export function generateSearchMetadata(slug: string, jobCount: number): Metadata
   const locationName = match[2].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
   const title = `${categoryName} Jobs in ${locationName} - Find ${jobCount > 0 ? jobCount : ''} Jobs | Workspa.in`
-  const description = `Find the latest ${categoryName} jobs in ${locationName} on Workspa.in. ${jobCount > 0 ? `We have ${jobCount} active openings.` : 'Browse therapist, masseuse, and spa manager positions.'} Apply directly to spas without login.`
+  const description = `Find the latest ${categoryName} jobs in ${locationName} on Workspa.in. ${jobCount > 0 ? `We have ${jobCount} active openings.` : 'Browse therapist, receptionist, and spa manager positions.'} Apply directly to spas without login.`
   const pageUrl = `${siteUrl}/jobs/${slug}`
 
   return {

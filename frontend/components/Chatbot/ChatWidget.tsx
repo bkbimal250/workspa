@@ -11,7 +11,7 @@ import QuerySuggestions from './QuerySuggestions';
 import { chatbotAPI, ChatbotJob, ChatbotSpa } from '@/lib/chatbot';
 import { useLocation } from '@/hooks/useLocation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface Message {
   text: string;
@@ -122,15 +122,17 @@ export default function ChatWidget() {
     };
   }, [isOpen, hints.length]);
 
-  const trackChatbotOpen = async () => {
+  const trackChatbotOpen = () => {
     if (hasTrackedOpen) return;
     setHasTrackedOpen(true);
     try {
-      await fetch(`${API_URL}/api/analytics/track?event_type=chat_opened`, {
+      fetch(`${API_URL}/api/analytics/track?event_type=chat_opened`, {
         method: 'POST',
+      }).catch((err) => { 
+        console.log('Analytics tracking disabled or offline'); 
       });
-    } catch {
-      // Silent fail - analytics should never block UI
+    } catch (err) {
+      console.log('Analytics call failed');
     }
   };
 

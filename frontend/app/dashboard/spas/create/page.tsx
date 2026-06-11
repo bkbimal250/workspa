@@ -1,177 +1,257 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { spaAPI, locationAPI, Location } from '@/lib/spa';
-import Navbar from '@/components/Navbar';
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+import Navbar from '@/components/Navbar';
+import {
+  LocationOptions,
+  SpaBasicInfoStep,
+  SpaCreateStep,
+  SpaDetailsMediaStep,
+  SpaFormData,
+  SpaFormProgress,
+  SpaLocationStep,
+} from '@/components/spas';
+import { useAuth } from '@/contexts/AuthContext';
+import { locationAPI, spaAPI } from '@/lib/spa';
+
+const initialFormData: SpaFormData = {
+  name: '',
+  description: '',
+  phone: '',
+  email: '',
+  address: '',
+  website: '',
+  directions: '',
+  opening_hours: '',
+  closing_hours: '',
+  booking_url_website: '',
+  country_id: '',
+  state_id: '',
+  city_id: '',
+  area_id: '',
+  postalCode: '',
+  latitude: '',
+  longitude: '',
+  rating: '',
+  reviews: '',
+};
+
+const canManageSpas = (role?: string) =>
+  role === 'admin' || role === 'manager' || role === 'recruiter';
 
 export default function CreateSpaPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+
+  const [step, setStep] = useState<SpaCreateStep>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Location data
-  const [countries, setCountries] = useState<Location[]>([]);
-  const [states, setStates] = useState<Location[]>([]);
-  const [cities, setCities] = useState<Location[]>([]);
-  const [areas, setAreas] = useState<Location[]>([]);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    phone: '',
-    email: '',
-    address: '',
-    website: '',
-    directions: '',
-    opening_hours: '',
-    closing_hours: '',
-    booking_url_website: '',
-    country_id: '',
-    state_id: '',
-    city_id: '',
-    area_id: '',
-    postalCode: '',
-    latitude: '',
-    longitude: '',
-    rating: '',
-    reviews: '',
-  });
+  const [formData, setFormData] = useState<SpaFormData>(initialFormData);
   const [logoImage, setLogoImage] = useState<File | null>(null);
   const [logoImagePreview, setLogoImagePreview] = useState<string | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [locationOptions, setLocationOptions] = useState<LocationOptions>({
+    countries: [],
+    states: [],
+    cities: [],
+    areas: [],
+  });
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'manager' && user.role !== 'recruiter')) {
+    if (!user || !canManageSpas(user.role)) {
       router.push('/dashboard');
+      return;
     }
 
-    // Fetch countries
-    locationAPI.getCountries().then(setCountries).catch(console.error);
+    locationAPI
+      .getCountries()
+      .then((countries) => setLocationOptions((prev) => ({ ...prev, countries })))
+      .catch(console.error);
   }, [user, router]);
 
   useEffect(() => {
-    if (formData.country_id) {
-      locationAPI.getStates(parseInt(formData.country_id)).then(setStates).catch(console.error);
-    } else {
-      setStates([]);
+    if (!formData.country_id) {
+      setLocationOptions((prev) => ({ ...prev, states: [], cities: [], areas: [] }));
+      return;
     }
+
+    locationAPI
+      .getStates(parseInt(formData.country_id))
+      .then((states) => setLocationOptions((prev) => ({ ...prev, states })))
+      .catch(console.error);
   }, [formData.country_id]);
 
   useEffect(() => {
-    if (formData.state_id) {
-      locationAPI.getCities(parseInt(formData.state_id)).then(setCities).catch(console.error);
-    } else {
-      setCities([]);
+    if (!formData.state_id) {
+      setLocationOptions((prev) => ({ ...prev, cities: [], areas: [] }));
+      return;
     }
+
+    locationAPI
+      .getCities(parseInt(formData.state_id))
+      .then((cities) => setLocationOptions((prev) => ({ ...prev, cities })))
+      .catch(console.error);
   }, [formData.state_id]);
 
   useEffect(() => {
-    if (formData.city_id) {
-      locationAPI.getAreas(parseInt(formData.city_id)).then(setAreas).catch(console.error);
-    } else {
-      setAreas([]);
+    if (!formData.city_id) {
+      setLocationOptions((prev) => ({ ...prev, areas: [] }));
+      return;
     }
+
+    locationAPI
+      .getAreas(parseInt(formData.city_id))
+      .then((areas) => setLocationOptions((prev) => ({ ...prev, areas })))
+      .catch(console.error);
   }, [formData.city_id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+      ...(name === 'country_id' ? { state_id: '', city_id: '', area_id: '' } : {}),
+      ...(name === 'state_id' ? { city_id: '', area_id: '' } : {}),
+      ...(name === 'city_id' ? { area_id: '' } : {}),
     }));
   };
 
-  const handleLogoImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setLogoImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleLogoImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
     }
+
+    setLogoImage(file);
+
+    const reader = new FileReader();
+    reader.onloadend = () => setLogoImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newImages = Array.from(e.target.files);
-      setImages((prev) => [...prev, ...newImages]);
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedImages = Array.from(event.target.files || []);
 
-      const newPreviews = newImages.map((file) => URL.createObjectURL(file));
-      setImagePreviews((prev) => [...prev, ...newPreviews]);
+    if (selectedImages.length === 0) {
+      return;
     }
+
+    setImages((prev) => [...prev, ...selectedImages]);
+    setImagePreviews((prev) => [
+      ...prev,
+      ...selectedImages.map((file) => URL.createObjectURL(file)),
+    ]);
   };
 
   const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+    setImagePreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, itemIndex) => itemIndex !== index);
+    });
   };
 
-  const validateStep1 = () => {
-    if (!formData.name || !formData.email || !formData.phone || !formData.country_id || !formData.state_id || !formData.city_id || !formData.address) {
-      setError('Please fill in all required fields');
+  const validateCurrentStep = () => {
+    if (step === 1 && (!formData.name || !formData.email || !formData.phone)) {
+      setError('Please fill in the spa name, email, and phone.');
       return false;
     }
+
+    if (
+      step === 2 &&
+      (!formData.country_id || !formData.state_id || !formData.city_id || !formData.address)
+    ) {
+      setError('Please complete the required location fields.');
+      return false;
+    }
+
     return true;
   };
 
   const handleNext = () => {
     setError(null);
-    if (validateStep1()) {
-      setStep(2);
+
+    if (!validateCurrentStep()) {
+      return;
     }
+
+    setStep((prev) => Math.min(prev + 1, 3) as SpaCreateStep);
   };
 
   const handleBack = () => {
-    setStep(1);
     setError(null);
+    setStep((prev) => Math.max(prev - 1, 1) as SpaCreateStep);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
+  const appendIfPresent = (data: FormData, key: keyof SpaFormData) => {
+    const value = formData[key];
+
+    if (typeof value === 'string' && value !== '') {
+      data.append(key, value);
+    }
+  };
+
+  const buildSpaPayload = () => {
+    const data = new FormData();
+
+    data.append('name', formData.name);
+    data.append('email', formData.email);
+    data.append('phone', formData.phone);
+    data.append('country_id', formData.country_id);
+    data.append('state_id', formData.state_id);
+    data.append('city_id', formData.city_id);
+
+    (
+      [
+        'description',
+        'address',
+        'website',
+        'directions',
+        'opening_hours',
+        'closing_hours',
+        'booking_url_website',
+        'area_id',
+        'postalCode',
+        'latitude',
+        'longitude',
+        'rating',
+        'reviews',
+      ] as Array<keyof SpaFormData>
+    ).forEach((key) => appendIfPresent(data, key));
+
+    if (logoImage) {
+      data.append('logo_image', logoImage);
+    }
+
+    images.forEach((image) => data.append('images', image));
+
+    return data;
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
     setError(null);
     setSuccess(null);
 
+    if (!validateCurrentStep()) {
+      return;
+    }
+
+    setSubmitting(true);
+
     try {
-      const data = new FormData();
-      data.append('name', formData.name);
-      data.append('email', formData.email);
-      data.append('phone', formData.phone);
-      data.append('country_id', formData.country_id);
-      data.append('state_id', formData.state_id);
-      data.append('city_id', formData.city_id);
-      if (formData.description) data.append('description', formData.description);
-      if (formData.address) data.append('address', formData.address);
-      if (formData.website) data.append('website', formData.website);
-      if (formData.directions) data.append('directions', formData.directions);
-      if (formData.opening_hours) data.append('opening_hours', formData.opening_hours);
-      if (formData.closing_hours) data.append('closing_hours', formData.closing_hours);
-      if (formData.booking_url_website) data.append('booking_url_website', formData.booking_url_website);
-      if (formData.area_id) data.append('area_id', formData.area_id);
-      if (formData.postalCode !== undefined && formData.postalCode !== null) data.append('postalCode', formData.postalCode);
-      if (formData.latitude) data.append('latitude', formData.latitude);
-      if (formData.longitude) data.append('longitude', formData.longitude);
-      if (formData.rating) data.append('rating', formData.rating);
-      if (formData.reviews) data.append('reviews', formData.reviews);
-      if (logoImage) data.append('logo_image', logoImage);
-
-      images.forEach((image) => {
-        data.append('images', image);
-      });
-
-      const createdSpa = await spaAPI.createSpa(data);
+      const createdSpa = await spaAPI.createSpa(buildSpaPayload());
       setSuccess('SPA created successfully!');
+
       setTimeout(() => {
         router.push(`/dashboard/spas/${createdSpa.id}`);
       }, 1500);
@@ -182,458 +262,58 @@ export default function CreateSpaPage() {
     }
   };
 
-  if (!user || (user.role !== 'admin' && user.role !== 'manager' && user.role !== 'recruiter')) {
+  if (!user || !canManageSpas(user.role)) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex justify-between items-center">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Create New SPA</h1>
-            <p className="text-gray-600 mt-2">Step {step} of 2</p>
+            <p className="mt-2 text-gray-600">Step {step} of 3</p>
           </div>
           <Link href="/dashboard/spas" className="btn-secondary">
             Back to SPAs
           </Link>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center">
-            <div className={`flex items-center ${step >= 1 ? 'text-primary-600' : 'text-gray-400'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                1
-              </div>
-              <span className="ml-2 font-medium">Basic Information</span>
-            </div>
-            <div className={`flex-1 h-1 mx-4 ${step >= 2 ? 'bg-primary-600' : 'bg-gray-200'}`}></div>
-            <div className={`flex items-center ${step >= 2 ? 'text-primary-600' : 'text-gray-400'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                2
-              </div>
-              <span className="ml-2 font-medium">Additional Details</span>
-            </div>
-          </div>
-        </div>
+        <SpaFormProgress currentStep={step} />
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">{error}</div>}
-        {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4">{success}</div>}
+        {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-700">{error}</div>}
+        {success && (
+          <div className="mb-4 rounded-lg bg-green-100 p-3 text-green-700">{success}</div>
+        )}
 
         <form onSubmit={handleSubmit} className="card space-y-6">
-          {/* Step 1: Basic Information */}
           {step === 1 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Basic Information</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    SPA Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                    Phone <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="website" className="block text-sm font-medium text-gray-700">
-                    Website
-                  </label>
-                  <input
-                    type="url"
-                    id="website"
-                    name="website"
-                    value={formData.website}
-                    onChange={handleChange}
-                    className="input-field"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={4}
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="input-field"
-                ></textarea>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Location Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="country_id" className="block text-sm font-medium text-gray-700">
-                      Country <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="country_id"
-                      name="country_id"
-                      value={formData.country_id}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                    >
-                      <option value="">Select Country</option>
-                      {countries.map((country) => (
-                        <option key={country.id} value={country.id}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="state_id" className="block text-sm font-medium text-gray-700">
-                      State <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="state_id"
-                      name="state_id"
-                      value={formData.state_id}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                      disabled={!formData.country_id}
-                    >
-                      <option value="">Select State</option>
-                      {states.map((state) => (
-                        <option key={state.id} value={state.id}>
-                          {state.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="city_id" className="block text-sm font-medium text-gray-700">
-                      City <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="city_id"
-                      name="city_id"
-                      value={formData.city_id}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                      disabled={!formData.state_id}
-                    >
-                      <option value="">Select City</option>
-                      {cities.map((city) => (
-                        <option key={city.id} value={city.id}>
-                          {city.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="area_id" className="block text-sm font-medium text-gray-700">
-                      Area
-                    </label>
-                    <select
-                      id="area_id"
-                      name="area_id"
-                      value={formData.area_id}
-                      onChange={handleChange}
-                      className="input-field"
-                      disabled={!formData.city_id}
-                    >
-                      <option value="">Select Area (Optional)</option>
-                      {areas.map((area) => (
-                        <option key={area.id} value={area.id}>
-                          {area.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">
-                      Postal Code
-                    </label>
-                    <input
-                      type="text"
-                      id="postalCode"
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleChange}
-                      className="input-field"
-                      placeholder="e.g., 12345"
-                      maxLength={10}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                      Full Address <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      id="address"
-                      name="address"
-                      rows={2}
-                      value={formData.address}
-                      onChange={handleChange}
-                      className="input-field"
-                      required
-                    ></textarea>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="btn-primary"
-                >
-                  Next: Additional Details →
-                </button>
-              </div>
-            </div>
+            <SpaBasicInfoStep formData={formData} onChange={handleChange} onNext={handleNext} />
           )}
 
-          {/* Step 2: Additional Details */}
           {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Additional Details</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="opening_hours" className="block text-sm font-medium text-gray-700">
-                    Opening Hours
-                  </label>
-                  <input
-                    type="text"
-                    id="opening_hours"
-                    name="opening_hours"
-                    value={formData.opening_hours}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="e.g., 9:00 AM"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="closing_hours" className="block text-sm font-medium text-gray-700">
-                    Closing Hours
-                  </label>
-                  <input
-                    type="text"
-                    id="closing_hours"
-                    name="closing_hours"
-                    value={formData.closing_hours}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="e.g., 9:00 PM"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="latitude" className="block text-sm font-medium text-gray-700">
-                    Latitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    id="latitude"
-                    name="latitude"
-                    value={formData.latitude}
-                    onChange={handleChange}
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="longitude" className="block text-sm font-medium text-gray-700">
-                    Longitude
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    id="longitude"
-                    name="longitude"
-                    value={formData.longitude}
-                    onChange={handleChange}
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="rating" className="block text-sm font-medium text-gray-700">
-                    Rating
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="5"
-                    id="rating"
-                    name="rating"
-                    value={formData.rating}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="e.g., 4.5"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Rating from 0.0 to 5.0</p>
-                </div>
-                <div>
-                  <label htmlFor="reviews" className="block text-sm font-medium text-gray-700">
-                    Number of Reviews
-                  </label>
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    id="reviews"
-                    name="reviews"
-                    value={formData.reviews}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="e.g., 150"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Total number of reviews</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="directions" className="block text-sm font-medium text-gray-700">
-                    Google Maps Directions URL
-                  </label>
-                  <input
-                    type="url"
-                    id="directions"
-                    name="directions"
-                    value={formData.directions}
-                    onChange={handleChange}
-                    placeholder="https://maps.google.com/?daddr=..."
-                    className="input-field"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">
-                    Enter the Google Maps directions URL. You can get this by clicking "Directions" on Google Maps and copying the URL.
-                  </p>
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="booking_url_website" className="block text-sm font-medium text-gray-700">
-                    Booking URL / Website
-                  </label>
-                  <input
-                    type="url"
-                    id="booking_url_website"
-                    name="booking_url_website"
-                    value={formData.booking_url_website}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="e.g., https://book.myspa.com"
-                  />
-                </div>
-              </div>
+            <SpaLocationStep
+              formData={formData}
+              locationOptions={locationOptions}
+              onBack={handleBack}
+              onChange={handleChange}
+              onNext={handleNext}
+            />
+          )}
 
-              <div>
-                <label htmlFor="logo_image" className="block text-sm font-medium text-gray-700 mb-2">
-                  Logo Image (Recommended: 500x500px, Max 10MB, JPG, PNG, WebP)
-                </label>
-                <input
-                  type="file"
-                  id="logo_image"
-                  name="logo_image"
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleLogoImageChange}
-                  className="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-primary-50 file:text-primary-700
-                    hover:file:bg-primary-100"
-                />
-                {logoImagePreview && (
-                  <div className="mt-4">
-                    <img src={logoImagePreview} alt="Logo preview" className="w-full h-48 object-cover rounded-md border border-gray-300" />
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="images" className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload SPA Images (Max 10MB per file, JPG, PNG, WebP, GIF, BMP)
-                </label>
-                <input
-                  type="file"
-                  id="images"
-                  name="images"
-                  multiple
-                  accept=".jpg,.jpeg,.png,.webp,.gif,.bmp"
-                  onChange={handleImageChange}
-                  className="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-primary-50 file:text-primary-700
-                    hover:file:bg-primary-100"
-                />
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative">
-                      <img src={preview} alt={`Preview ${index}`} className="w-full h-32 object-cover rounded-md" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs hover:bg-red-600"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-between">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="btn-secondary"
-                >
-                  ← Back
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Creating...' : 'Create SPA'}
-                </button>
-              </div>
-            </div>
+          {step === 3 && (
+            <SpaDetailsMediaStep
+              formData={formData}
+              imagePreviews={imagePreviews}
+              logoImagePreview={logoImagePreview}
+              submitting={submitting}
+              onBack={handleBack}
+              onChange={handleChange}
+              onImagesChange={handleImageChange}
+              onLogoImageChange={handleLogoImageChange}
+              onRemoveImage={handleRemoveImage}
+            />
           )}
         </form>
       </div>

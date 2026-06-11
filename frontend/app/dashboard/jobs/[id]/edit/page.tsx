@@ -1,13 +1,63 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { jobAPI, Job, JobType, JobCategory } from '@/lib/job';
-import { spaAPI, Spa } from '@/lib/spa';
-import { locationAPI } from '@/lib/location';
-import Navbar from '@/components/Navbar';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+
+import Navbar from '@/components/Navbar';
+import {
+  JobBasicsStep,
+  JobCreateStep,
+  JobFieldChangeHandler,
+  JobFormData,
+  JobFormNavigation,
+  JobFormWizard,
+  JobLookupData,
+  JobPayPublishStep,
+  JobRoleLocationStep,
+} from '@/components/dashboardjobs';
+import { useAuth } from '@/contexts/AuthContext';
+import { jobAPI } from '@/lib/job';
+import { locationAPI } from '@/lib/location';
+import { spaAPI } from '@/lib/spa';
+
+const initialFormData: JobFormData = {
+  title: '',
+  description: '',
+  requirements: '',
+  responsibilities: '',
+  benefits: '',
+  job_timing: '',
+  key_skills: '',
+  job_opening_count: '1',
+  Industry_type: 'Beauty and Spa',
+  Employee_type: 'Full Time',
+  required_gender: 'Female',
+  job_type_id: '',
+  job_category_id: '',
+  salary_min: '',
+  salary_max: '',
+  salary_currency: 'INR',
+  experience_years_min: '',
+  experience_years_max: '',
+  spa_id: '',
+  country_id: '',
+  state_id: '',
+  city_id: '',
+  area_id: '',
+  postalCode: '',
+  hr_contact_name: '',
+  hr_contact_email: '',
+  hr_contact_phone: '',
+  is_active: true,
+  is_featured: false,
+  expires_at: '',
+  meta_title: '',
+  meta_description: '',
+};
+
+const canManageJobs = (role?: string) =>
+  role === 'admin' || role === 'manager' || role === 'recruiter';
 
 export default function EditJobPage() {
   const { user } = useAuth();
@@ -15,226 +65,324 @@ export default function EditJobPage() {
   const params = useParams();
   const jobId = params?.id ? parseInt(params.id as string) : null;
 
-  const [loading, setLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState<JobCreateStep>(1);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  const [spas, setSpas] = useState<Spa[]>([]);
-  const [jobTypes, setJobTypes] = useState<JobType[]>([]);
-  const [jobCategories, setJobCategories] = useState<JobCategory[]>([]);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [states, setStates] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
-  const [areas, setAreas] = useState<any[]>([]);
-
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    requirements: '',
-    responsibilities: '',
-    benefits: '',
-    job_timing: '',
-    key_skills: '',
-    salary_min: '',
-    salary_max: '',
-    salary_currency: 'INR',
-    experience_years_min: '',
-    experience_years_max: '',
-    spa_id: '',
-    job_type_id: '',
-    job_category_id: '',
-    country_id: '',
-    state_id: '',
-    city_id: '',
-    area_id: '',
-    postalCode: '',
-    hr_contact_name: '',
-    hr_contact_email: '',
-    hr_contact_phone: '',
-    is_active: true,
-    is_featured: false,
-    expires_at: '',
-    Industry_type: '',
-    Employee_type: '',
-    required_gender: 'Female',
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<JobFormData>(initialFormData);
+  const [lookupData, setLookupData] = useState<JobLookupData>({
+    spas: [],
+    jobTypes: [],
+    jobCategories: [],
+    countries: [],
+    states: [],
+    cities: [],
+    areas: [],
   });
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'manager' && user.role !== 'recruiter')) {
+    if (!user || !canManageJobs(user.role)) {
       router.push('/dashboard');
-    } else if (jobId) {
-      fetchJob();
-      fetchInitialData();
+      return;
+    }
+
+    if (jobId) {
+      fetchPageData();
     }
   }, [user, router, jobId]);
 
-  useEffect(() => {
-    if (formData.country_id) {
-      locationAPI.getStates(parseInt(formData.country_id)).then(setStates).catch(console.error);
+  const extractErrorMessage = (err: any): string => {
+    if (!err) {
+      return 'An unexpected error occurred';
     }
-  }, [formData.country_id]);
 
-  useEffect(() => {
-    if (formData.state_id) {
-      locationAPI.getCities(parseInt(formData.state_id)).then(setCities).catch(console.error);
+    if (typeof err === 'string') {
+      return err;
     }
-  }, [formData.state_id]);
 
-  useEffect(() => {
-    if (formData.city_id) {
-      locationAPI.getAreas(parseInt(formData.city_id)).then(setAreas).catch(console.error);
-    }
-  }, [formData.city_id]);
+    const detail = err.response?.data?.detail;
 
-  const fetchInitialData = async () => {
-    try {
-      const [spasData, typesData, categoriesData, countriesData] = await Promise.all([
-        spaAPI.getSpas(),
-        jobAPI.getJobTypes(),
-        jobAPI.getJobCategories(),
-        locationAPI.getCountries(),
-      ]);
-      setSpas(spasData);
-      setJobTypes(typesData);
-      setJobCategories(categoriesData);
-      setCountries(countriesData);
-    } catch (err) {
-      console.error('Failed to fetch initial data:', err);
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item: any) => {
+          const field = item.loc && item.loc.length > 1 ? item.loc[item.loc.length - 1] : 'field';
+          return `${field}: ${item.msg}`;
+        })
+        .join(', ');
     }
+
+    if (typeof detail === 'string') {
+      return detail;
+    }
+
+    return err.message || 'An unexpected error occurred. Please try again.';
   };
 
-  // Helper function to extract error message from API response
-  const extractErrorMessage = (error: any): string => {
-    if (!error) return 'An unexpected error occurred';
-    
-    // If it's already a string, return it
-    if (typeof error === 'string') return error;
-    
-    // Handle FastAPI/Pydantic validation errors
-    if (error.response?.data?.detail) {
-      const detail = error.response.data.detail;
-      
-      // If detail is an array of validation errors
-      if (Array.isArray(detail)) {
-        return detail.map((err: any) => {
-          const field = err.loc && err.loc.length > 1 ? err.loc[err.loc.length - 1] : 'field';
-          return `${field}: ${err.msg}`;
-        }).join(', ');
-      }
-      
-      // If detail is a string
-      if (typeof detail === 'string') return detail;
+  const fetchPageData = async () => {
+    if (!jobId) {
+      return;
     }
-    
-    // Fallback error messages
-    if (error.message) return error.message;
-    return 'An unexpected error occurred. Please try again.';
-  };
 
-  const fetchJob = async () => {
-    if (!jobId) return;
     setLoading(true);
     setError(null);
+
     try {
-      const data = await jobAPI.getJobById(jobId);
-      setFormData({
-        title: data.title || '',
-        description: data.description || '',
-        requirements: data.requirements || '',
-        responsibilities: data.responsibilities || '',
-        benefits: data.benefits || '',
-        job_timing: data.job_timing || '',
-        key_skills: data.key_skills || '',
-        salary_min: data.salary_min?.toString() || '',
-        salary_max: data.salary_max?.toString() || '',
-        salary_currency: data.salary_currency || 'INR',
-        experience_years_min: data.experience_years_min?.toString() || '',
-        experience_years_max: data.experience_years_max?.toString() || '',
-        spa_id: data.spa_id?.toString() || '',
-        job_type_id: data.job_type_id?.toString() || '',
-        job_category_id: data.job_category_id?.toString() || '',
-        country_id: data.country_id?.toString() || '',
-        state_id: data.state_id?.toString() || '',
-        city_id: data.city_id?.toString() || '',
-        area_id: data.area_id?.toString() || '',
-        postalCode: data.postalCode || '',
-        hr_contact_name: data.hr_contact_name || '',
-        hr_contact_email: data.hr_contact_email || '',
-        hr_contact_phone: data.hr_contact_phone || '',
-        is_active: data.is_active ?? true,
-        is_featured: data.is_featured ?? false,
-        expires_at: data.expires_at ? new Date(data.expires_at).toISOString().slice(0, 16) : '',
-        Industry_type: data.Industry_type || 'Beauty and Spa',
-        Employee_type: data.Employee_type || 'Full Time',
-        required_gender: data.required_gender || 'Female',
+      const [job, countries, jobTypes, jobCategories] = await Promise.all([
+        jobAPI.getJobById(jobId),
+        locationAPI.getCountries(),
+        jobAPI.getJobTypes(),
+        jobAPI.getJobCategories(),
+      ]);
+
+      const [states, cities, areas, spas] = await Promise.all([
+        job.country_id ? locationAPI.getStates(job.country_id) : Promise.resolve([]),
+        job.state_id ? locationAPI.getCities(job.state_id) : Promise.resolve([]),
+        job.city_id ? locationAPI.getAreas(job.city_id) : Promise.resolve([]),
+        user?.role === 'recruiter'
+          ? spaAPI.getMySpa().then((spa) => [spa])
+          : spaAPI.getSpas(),
+      ]);
+
+      setLookupData({
+        spas,
+        jobTypes,
+        jobCategories,
+        countries,
+        states,
+        cities,
+        areas,
       });
-      
+
+      setFormData({
+        title: job.title || '',
+        description: job.description || '',
+        requirements: job.requirements || '',
+        responsibilities: job.responsibilities || '',
+        benefits: job.benefits || '',
+        job_timing: job.job_timing || '',
+        key_skills: job.key_skills || '',
+        job_opening_count: job.job_opening_count?.toString() || '1',
+        Industry_type: job.Industry_type || 'Beauty and Spa',
+        Employee_type: job.Employee_type || 'Full Time',
+        required_gender: job.required_gender || 'Female',
+        job_type_id: job.job_type_id?.toString() || '',
+        job_category_id: job.job_category_id?.toString() || '',
+        salary_min: job.salary_min?.toString() || '',
+        salary_max: job.salary_max?.toString() || '',
+        salary_currency: job.salary_currency || 'INR',
+        experience_years_min: job.experience_years_min?.toString() || '',
+        experience_years_max: job.experience_years_max?.toString() || '',
+        spa_id: job.spa_id?.toString() || '',
+        country_id: job.country_id?.toString() || '',
+        state_id: job.state_id?.toString() || '',
+        city_id: job.city_id?.toString() || '',
+        area_id: job.area_id?.toString() || '',
+        postalCode: job.postalCode || '',
+        hr_contact_name: job.hr_contact_name || '',
+        hr_contact_email: job.hr_contact_email || '',
+        hr_contact_phone: job.hr_contact_phone || '',
+        is_active: job.is_active ?? true,
+        is_featured: job.is_featured ?? false,
+        expires_at: job.expires_at ? new Date(job.expires_at).toISOString().slice(0, 16) : '',
+        meta_title: '',
+        meta_description: '',
+      });
     } catch (err: any) {
       setError(extractErrorMessage(err));
-      console.error('Failed to fetch job:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
+  const handleFieldChange: JobFieldChangeHandler = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (formErrors[name]) {
+      setFormErrors((prev) => {
+        const nextErrors = { ...prev };
+        delete nextErrors[name];
+        return nextErrors;
+      });
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!jobId) return;
+  const handleCountryChange = (countryId: string) => {
+    setFormData((prev) => ({ ...prev, state_id: '', city_id: '', area_id: '' }));
+    setLookupData((prev) => ({ ...prev, states: [], cities: [], areas: [] }));
+
+    if (countryId) {
+      locationAPI
+        .getStates(parseInt(countryId))
+        .then((states) => setLookupData((prev) => ({ ...prev, states })))
+        .catch(console.error);
+    }
+  };
+
+  const handleStateChange = (stateId: string) => {
+    setFormData((prev) => ({ ...prev, city_id: '', area_id: '' }));
+    setLookupData((prev) => ({ ...prev, cities: [], areas: [] }));
+
+    if (stateId) {
+      locationAPI
+        .getCities(parseInt(stateId))
+        .then((cities) => setLookupData((prev) => ({ ...prev, cities })))
+        .catch(console.error);
+    }
+  };
+
+  const handleCityChange = (cityId: string) => {
+    setFormData((prev) => ({ ...prev, area_id: '' }));
+    setLookupData((prev) => ({ ...prev, areas: [] }));
+
+    if (cityId) {
+      locationAPI
+        .getAreas(parseInt(cityId))
+        .then((areas) => setLookupData((prev) => ({ ...prev, areas })))
+        .catch(console.error);
+    }
+  };
+
+  const validateStep = (step: JobCreateStep): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (step === 1) {
+      if (!formData.spa_id) {
+        errors.spa_id = 'Please select a SPA';
+      }
+      if (!formData.title.trim()) {
+        errors.title = 'Job title is required';
+      }
+    }
+
+    if (step === 2) {
+      if (!formData.description.trim()) {
+        errors.description = 'Job description is required';
+      }
+      if (!formData.country_id) {
+        errors.country_id = 'Please select a country';
+      }
+      if (!formData.state_id) {
+        errors.state_id = 'Please select a state';
+      }
+      if (!formData.city_id) {
+        errors.city_id = 'Please select a city';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const goToStep = (step: JobCreateStep) => {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      goToStep(Math.min(currentStep + 1, 3) as JobCreateStep);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      goToStep((currentStep - 1) as JobCreateStep);
+    }
+  };
+
+  const handleStepChange = (step: JobCreateStep) => {
+    if (step <= currentStep) {
+      goToStep(step);
+      return;
+    }
+
+    if (step === 2 && validateStep(1)) {
+      goToStep(2);
+      return;
+    }
+
+    if (step === 3 && validateStep(1) && validateStep(2)) {
+      goToStep(3);
+    }
+  };
+
+  const buildUpdatePayload = () => {
+    const updateData: Record<string, unknown> = {
+      title: formData.title || undefined,
+      description: formData.description || undefined,
+      requirements: formData.requirements || undefined,
+      responsibilities: formData.responsibilities || undefined,
+      benefits: formData.benefits || undefined,
+      job_timing: formData.job_timing || undefined,
+      key_skills: formData.key_skills || undefined,
+      job_opening_count: formData.job_opening_count ? parseInt(formData.job_opening_count) : undefined,
+      Industry_type: formData.Industry_type || undefined,
+      Employee_type: formData.Employee_type || undefined,
+      required_gender: formData.required_gender || undefined,
+      job_type_id: formData.job_type_id ? parseInt(formData.job_type_id) : undefined,
+      job_category_id: formData.job_category_id ? parseInt(formData.job_category_id) : undefined,
+      salary_min: formData.salary_min ? parseInt(formData.salary_min) : undefined,
+      salary_max: formData.salary_max ? parseInt(formData.salary_max) : undefined,
+      salary_currency: formData.salary_currency || undefined,
+      experience_years_min: formData.experience_years_min
+        ? parseInt(formData.experience_years_min)
+        : undefined,
+      experience_years_max: formData.experience_years_max
+        ? parseInt(formData.experience_years_max)
+        : undefined,
+      spa_id: formData.spa_id ? parseInt(formData.spa_id) : undefined,
+      country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
+      state_id: formData.state_id ? parseInt(formData.state_id) : undefined,
+      city_id: formData.city_id ? parseInt(formData.city_id) : undefined,
+      area_id: formData.area_id ? parseInt(formData.area_id) : undefined,
+      postalCode: formData.postalCode || undefined,
+      hr_contact_name: formData.hr_contact_name || undefined,
+      hr_contact_email: formData.hr_contact_email || undefined,
+      hr_contact_phone: formData.hr_contact_phone || undefined,
+      is_active: formData.is_active,
+      is_featured: formData.is_featured,
+      expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : undefined,
+      meta_title: formData.meta_title || undefined,
+      meta_description: formData.meta_description || undefined,
+    };
+
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    return updateData;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!jobId) {
+      return;
+    }
+
+    if (!validateStep(1)) {
+      goToStep(1);
+      return;
+    }
+
+    if (!validateStep(2)) {
+      goToStep(2);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setSuccess(null);
+    setFormErrors({});
 
     try {
-      const updateData: any = {
-        title: formData.title || undefined,
-        description: formData.description || undefined,
-        requirements: formData.requirements || undefined,
-        responsibilities: formData.responsibilities || undefined,
-        benefits: formData.benefits || undefined,
-        job_timing: formData.job_timing || undefined,
-        key_skills: formData.key_skills || undefined,
-        salary_min: formData.salary_min ? parseInt(formData.salary_min) : undefined,
-        salary_max: formData.salary_max ? parseInt(formData.salary_max) : undefined,
-        salary_currency: formData.salary_currency || undefined,
-        experience_years_min: formData.experience_years_min ? parseInt(formData.experience_years_min) : undefined,
-        experience_years_max: formData.experience_years_max ? parseInt(formData.experience_years_max) : undefined,
-        spa_id: formData.spa_id ? parseInt(formData.spa_id) : undefined,
-        job_type_id: formData.job_type_id ? parseInt(formData.job_type_id) : undefined,
-        job_category_id: formData.job_category_id ? parseInt(formData.job_category_id) : undefined,
-        country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
-        state_id: formData.state_id ? parseInt(formData.state_id) : undefined,
-        city_id: formData.city_id ? parseInt(formData.city_id) : undefined,
-        area_id: formData.area_id ? parseInt(formData.area_id) : undefined,
-        postalCode: formData.postalCode || undefined,
-        hr_contact_name: formData.hr_contact_name || undefined,
-        hr_contact_email: formData.hr_contact_email || undefined,
-        hr_contact_phone: formData.hr_contact_phone || undefined,
-        is_active: formData.is_active,
-        is_featured: formData.is_featured,
-        expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : undefined,
-        Industry_type: formData.Industry_type || undefined,
-        Employee_type: formData.Employee_type || undefined,
-        required_gender: formData.required_gender || undefined,
-      };
-
-      // Remove undefined values
-      Object.keys(updateData).forEach((key) => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
-      });
-
-      await jobAPI.updateJob(jobId, updateData);
+      await jobAPI.updateJob(jobId, buildUpdatePayload());
       setSuccess('Job updated successfully!');
+
       setTimeout(() => {
         router.push(`/dashboard/jobs/${jobId}`);
       }, 1500);
@@ -245,533 +393,87 @@ export default function EditJobPage() {
     }
   };
 
-  if (loading || !user || (user.role !== 'admin' && user.role !== 'manager' && user.role !== 'recruiter')) {
+  if (loading || !user || !canManageJobs(user.role)) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Edit Job</h1>
-            <p className="text-gray-600 mt-2">Update job information</p>
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Edit Job</h1>
+              <p className="mt-2 text-gray-600">Step {currentStep} of 3</p>
+            </div>
+            <Link
+              href={`/dashboard/jobs/${jobId}`}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Back to View
+            </Link>
           </div>
-          <Link href={`/dashboard/jobs/${jobId}`} className="btn-secondary">
-            Back to View
-          </Link>
         </div>
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">{error}</div>}
-        {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4">{success}</div>}
-
-        <form onSubmit={handleSubmit} className="card space-y-6">
-          {/* Basic Info */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Basic Information</h2>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                  Job Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={6}
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                ></textarea>
-              </div>
-              <div>
-                <label htmlFor="requirements" className="block text-sm font-medium text-gray-700">
-                  Requirements
-                </label>
-                <textarea
-                  id="requirements"
-                  name="requirements"
-                  rows={4}
-                  value={formData.requirements}
-                  onChange={handleChange}
-                  className="input-field"
-                ></textarea>
-              </div>
-              <div>
-                <label htmlFor="responsibilities" className="block text-sm font-medium text-gray-700">
-                  Responsibilities
-                </label>
-                <textarea
-                  id="responsibilities"
-                  name="responsibilities"
-                  rows={4}
-                  value={formData.responsibilities}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="Key responsibilities and daily tasks..."
-                ></textarea>
-              </div>
-              <div>
-                <label htmlFor="benefits" className="block text-sm font-medium text-gray-700">
-                  Benefits
-                </label>
-                <textarea
-                  id="benefits"
-                  name="benefits"
-                  rows={3}
-                  value={formData.benefits}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="Benefits offered (e.g., Health Insurance, Paid Leave, Bonus, Incentives, etc.)"
-                ></textarea>
-              </div>
-              <div>
-                <label htmlFor="job_timing" className="block text-sm font-medium text-gray-700">
-                  Job Timing
-                </label>
-                <select
-                  id="job_timing"
-                  name="job_timing"
-                  value={formData.job_timing}
-                  onChange={handleChange}
-                  className="input-field"
-                >
-                  <option value="">Select Job Timing</option>
-                  <option value="11:00 AM to 8:00 PM">11:00 AM to 8:00 PM</option>
-                  <option value="11:00 AM to 10:00 PM">11:00 AM to 10:00 PM</option>
-                  <option value="11:00 AM to 11:00 PM">11:00 AM to 11:00 PM</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="key_skills" className="block text-sm font-medium text-gray-700">
-                  Key Skills
-                </label>
-                <textarea
-                  id="key_skills"
-                  name="key_skills"
-                  rows={3}
-                  value={formData.key_skills}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="Essential skills required (separate with commas or list one per line)"
-                ></textarea>
-              </div>
-            </div>
+        {error && (
+          <div className="mb-6 rounded-lg border-l-4 border-red-500 bg-red-50 p-4 text-red-700">
+            <p className="break-words">{error}</p>
           </div>
+        )}
 
-          {/* Job Details */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Job Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="spa_id" className="block text-sm font-medium text-gray-700">
-                  SPA <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="spa_id"
-                  name="spa_id"
-                  value={formData.spa_id}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                >
-                  <option value="">Select SPA</option>
-                  {spas.map((spa) => (
-                    <option key={spa.id} value={spa.id}>
-                      {spa.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="job_type_id" className="block text-sm font-medium text-gray-700">
-                  Job Type
-                </label>
-                <select
-                  id="job_type_id"
-                  name="job_type_id"
-                  value={formData.job_type_id}
-                  onChange={handleChange}
-                  className="input-field"
-                >
-                  <option value="">Select Job Type</option>
-                  {jobTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="job_category_id" className="block text-sm font-medium text-gray-700">
-                  Job Category
-                </label>
-                <select
-                  id="job_category_id"
-                  name="job_category_id"
-                  value={formData.job_category_id}
-                  onChange={handleChange}
-                  className="input-field"
-                >
-                  <option value="">Select Job Category</option>
-                  {jobCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="Industry_type" className="block text-sm font-medium text-gray-700">
-                  Industry Type
-                </label>
-                <input
-                  type="text"
-                  id="Industry_type"
-                  name="Industry_type"
-                  value={formData.Industry_type}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="Beauty and Spa"
-                />
-              </div>
-              <div>
-                <label htmlFor="Employee_type" className="block text-sm font-medium text-gray-700">
-                  Employment Type
-                </label>
-                <select
-                  id="Employee_type"
-                  name="Employee_type"
-                  value={formData.Employee_type}
-                  onChange={handleChange}
-                  className="input-field"
-                >
-                  <option value="Full Time">Full Time</option>
-                  <option value="Part Time">Part Time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Temporary">Temporary</option>
-                  <option value="Internship">Internship</option>
-                  <option value="Freelance">Freelance</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="required_gender" className="block text-sm font-medium text-gray-700">
-                  Required Gender
-                </label>
-                <select
-                  id="required_gender"
-                  name="required_gender"
-                  value={formData.required_gender}
-                  onChange={handleChange}
-                  className="input-field"
-                >
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Any">Any</option>
-                </select>
-              </div>
-            </div>
+        {success && (
+          <div className="mb-6 rounded-lg border-l-4 border-green-500 bg-green-50 p-4 text-green-700">
+            <p>{success}</p>
           </div>
+        )}
 
-          {/* Salary & Experience */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Salary & Experience</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="salary_min" className="block text-sm font-medium text-gray-700">
-                  Min Salary
-                </label>
-                <input
-                  type="number"
-                  id="salary_min"
-                  name="salary_min"
-                  value={formData.salary_min}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label htmlFor="salary_max" className="block text-sm font-medium text-gray-700">
-                  Max Salary
-                </label>
-                <input
-                  type="number"
-                  id="salary_max"
-                  name="salary_max"
-                  value={formData.salary_max}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label htmlFor="salary_currency" className="block text-sm font-medium text-gray-700">
-                  Currency
-                </label>
-                <select
-                  id="salary_currency"
-                  name="salary_currency"
-                  value={formData.salary_currency}
-                  onChange={handleChange}
-                  className="input-field"
-                >
-                  <option value="INR">INR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="experience_years_min" className="block text-sm font-medium text-gray-700">
-                  Min Experience (years)
-                </label>
-                <input
-                  type="number"
-                  id="experience_years_min"
-                  name="experience_years_min"
-                  value={formData.experience_years_min}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label htmlFor="experience_years_max" className="block text-sm font-medium text-gray-700">
-                  Max Experience (years)
-                </label>
-                <input
-                  type="number"
-                  id="experience_years_max"
-                  name="experience_years_max"
-                  value={formData.experience_years_max}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-            </div>
-          </div>
+        <form onSubmit={handleSubmit}>
+          <JobFormWizard currentStep={currentStep} onStepChange={handleStepChange}>
+            {currentStep === 1 && (
+              <JobBasicsStep
+                errors={formErrors}
+                formData={formData}
+                jobCategories={lookupData.jobCategories}
+                jobTypes={lookupData.jobTypes}
+                onFieldChange={handleFieldChange}
+                spas={lookupData.spas}
+                userRole={user.role}
+              />
+            )}
 
-          {/* Location */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Location</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="country_id" className="block text-sm font-medium text-gray-700">
-                  Country <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="country_id"
-                  name="country_id"
-                  value={formData.country_id}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                >
-                  <option value="">Select Country</option>
-                  {countries.map((country) => (
-                    <option key={country.id} value={country.id}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="state_id" className="block text-sm font-medium text-gray-700">
-                  State <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="state_id"
-                  name="state_id"
-                  value={formData.state_id}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                  disabled={!formData.country_id}
-                >
-                  <option value="">Select State</option>
-                  {states.map((state) => (
-                    <option key={state.id} value={state.id}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="city_id" className="block text-sm font-medium text-gray-700">
-                  City <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="city_id"
-                  name="city_id"
-                  value={formData.city_id}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                  disabled={!formData.state_id}
-                >
-                  <option value="">Select City</option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="area_id" className="block text-sm font-medium text-gray-700">
-                  Area
-                </label>
-                <select
-                  id="area_id"
-                  name="area_id"
-                  value={formData.area_id}
-                  onChange={handleChange}
-                  className="input-field"
-                  disabled={!formData.city_id}
-                >
-                  <option value="">Select Area (Optional)</option>
-                  {areas.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">
-                  Postal Code
-                </label>
-                <input
-                  type="text"
-                  id="postalCode"
-                  name="postalCode"
-                  value={formData.postalCode}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="e.g., 12345"
-                  maxLength={10}
-                />
-              </div>
-            </div>
-          </div>
+            {currentStep === 2 && (
+              <JobRoleLocationStep
+                areas={lookupData.areas}
+                cities={lookupData.cities}
+                countries={lookupData.countries}
+                errors={formErrors}
+                formData={formData}
+                onCountryChange={handleCountryChange}
+                onCityChange={handleCityChange}
+                onFieldChange={handleFieldChange}
+                onStateChange={handleStateChange}
+                states={lookupData.states}
+              />
+            )}
 
-          {/* HR Contact */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">HR Contact</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="hr_contact_name" className="block text-sm font-medium text-gray-700">
-                  HR Name
-                </label>
-                <input
-                  type="text"
-                  id="hr_contact_name"
-                  name="hr_contact_name"
-                  value={formData.hr_contact_name}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label htmlFor="hr_contact_email" className="block text-sm font-medium text-gray-700">
-                  HR Email
-                </label>
-                <input
-                  type="email"
-                  id="hr_contact_email"
-                  name="hr_contact_email"
-                  value={formData.hr_contact_email}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label htmlFor="hr_contact_phone" className="block text-sm font-medium text-gray-700">
-                  HR Phone
-                </label>
-                <input
-                  type="tel"
-                  id="hr_contact_phone"
-                  name="hr_contact_phone"
-                  value={formData.hr_contact_phone}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label htmlFor="expires_at" className="block text-sm font-medium text-gray-700">
-                  Expires At
-                </label>
-                <input
-                  type="datetime-local"
-                  id="expires_at"
-                  name="expires_at"
-                  value={formData.expires_at}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-            </div>
-          </div>
+            {currentStep === 3 && (
+              <JobPayPublishStep formData={formData} onFieldChange={handleFieldChange} />
+            )}
 
-          {/* Status */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Status</h2>
-            <div className="space-y-2">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleChange}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Active</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="is_featured"
-                  checked={formData.is_featured}
-                  onChange={handleChange}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Featured</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <Link href={`/dashboard/jobs/${jobId}`} className="btn-secondary">
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={submitting}
-            >
-              {submitting ? 'Updating...' : 'Update Job'}
-            </button>
-          </div>
+            <JobFormNavigation
+              currentStep={currentStep}
+              onNext={handleNext}
+              onPrevious={handlePrevious}
+              submitting={submitting}
+            />
+          </JobFormWizard>
         </form>
       </div>
     </div>
   );
 }
-

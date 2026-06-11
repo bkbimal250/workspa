@@ -76,6 +76,7 @@ export default function LocationsPage() {
     if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
       router.push('/dashboard');
     } else {
+      fetchLocationOptions();
       fetchData();
       fetchStats();
     }
@@ -110,6 +111,22 @@ export default function LocationsPage() {
       });
     } catch (err) {
       console.error('Failed to fetch stats:', err);
+    }
+  };
+
+  const fetchLocationOptions = async () => {
+    try {
+      const [countriesData, statesData, citiesData] = await Promise.all([
+        locationAPI.getCountries(0, 1000),
+        locationAPI.getStates(undefined, 0, 1000),
+        locationAPI.getCities(undefined, undefined, 0, 1000),
+      ]);
+
+      setCountries(countriesData);
+      setStates(statesData);
+      setCities(citiesData);
+    } catch (err) {
+      console.error('Failed to fetch location options:', err);
     }
   };
 
@@ -213,53 +230,74 @@ export default function LocationsPage() {
     country_id?: number;
     state_id?: number;
     city_id?: number;
-  }) => {
+  }): Promise<Country | State | City | Area> => {
     setError(null);
     setSuccess(null);
 
     try {
+      let createdLocation!: Country | State | City | Area;
+
       switch (activeTab) {
         case 'countries':
-          await locationAPI.createCountry({ name: data.name });
+          createdLocation = await locationAPI.createCountry({ name: data.name });
+          setCountries((prev) => [createdLocation as Country, ...prev]);
+          setStats((prev) => ({ ...prev, totalCountries: prev.totalCountries + 1 }));
           break;
         case 'states':
           if (!data.country_id) throw new Error('Country is required');
-          await locationAPI.createState({
+          createdLocation = await locationAPI.createState({
             name: data.name,
             country_id: data.country_id,
           });
+          createdLocation = {
+            ...(createdLocation as State),
+            country: (createdLocation as State).country || countries.find((country) => country.id === data.country_id),
+          };
+          setStates((prev) => [createdLocation as State, ...prev]);
+          setStats((prev) => ({ ...prev, totalStates: prev.totalStates + 1 }));
           break;
         case 'cities':
           if (!data.state_id || !data.country_id) throw new Error('State and Country are required');
-          await locationAPI.createCity({
+          createdLocation = await locationAPI.createCity({
             name: data.name,
             state_id: data.state_id,
             country_id: data.country_id,
           });
+          createdLocation = {
+            ...(createdLocation as City),
+            state: (createdLocation as City).state || states.find((state) => state.id === data.state_id),
+            country: (createdLocation as City).country || countries.find((country) => country.id === data.country_id),
+          };
+          setCities((prev) => [createdLocation as City, ...prev]);
+          setStats((prev) => ({ ...prev, totalCities: prev.totalCities + 1 }));
           break;
         case 'areas':
           if (!data.city_id) throw new Error('City is required');
-          await locationAPI.createArea({
+          createdLocation = await locationAPI.createArea({
             name: data.name,
             city_id: data.city_id,
           });
+          createdLocation = {
+            ...(createdLocation as Area),
+            city: (createdLocation as Area).city || cities.find((city) => city.id === data.city_id),
+          };
+          setAreas((prev) => [createdLocation as Area, ...prev]);
+          setStats((prev) => ({ ...prev, totalAreas: prev.totalAreas + 1 }));
           break;
       }
 
       const successMsg = `${activeTab.slice(0, -1)} created successfully!`;
       showToast.success(successMsg);
       setSuccess(successMsg);
-      
-      // Refresh all data
-      await fetchData();
-      await fetchStats();
-      await fetchJobCounts();
-      
+      setJobCounts((prev) => ({ ...prev, [createdLocation.id]: 0 }));
+
       // Keep form open for "Save & Add Another" but reset on regular save
       // The form component handles this internally
       setTimeout(() => setSuccess(null), 3000);
+      return createdLocation;
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || `Failed to create ${activeTab.slice(0, -1)}`);
+      throw err;
     }
   };
 
@@ -469,6 +507,9 @@ export default function LocationsPage() {
             state_id: selectedStateId || undefined,
             city_id: selectedCityId || undefined,
           }}
+          countries={countries}
+          states={states}
+          cities={cities}
         />
 
         {/* Content */}

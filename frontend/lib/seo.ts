@@ -12,7 +12,7 @@ export const defaultMetadata: Metadata = {
     default: 'Work Spa Near Me - Find Work Spa in Your City | Work Spa Portal',
     template: '%s | Work Spa Portal',
   },
-  description: 'Find the best Work Spa near you. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience. Search for therapist, masseuse, and spa manager positions.',
+  description: 'Find the best Work Spa near you. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience. Search for therapist, receptionist, and spa manager positions.',
   keywords: [
     // Core Spa Job Keywords (India)
     'Work Spa',
@@ -29,7 +29,7 @@ export const defaultMetadata: Metadata = {
     'spa careers',
     'spa employment',
     'spa hiring',
-    
+
     // Therapist-Related Keywords
     'spa therapist job in india',
     'massage therapist job vacancy',
@@ -41,7 +41,7 @@ export const defaultMetadata: Metadata = {
     'deep tissue massage jobs',
     'four hand massage therapist',
     'spa therapist job near me',
-    
+
     // Receptionist / Front Office Keywords
     'spa receptionist jobs',
     'front desk executive spa',
@@ -49,7 +49,7 @@ export const defaultMetadata: Metadata = {
     'receptionist jobs in spa',
     'female receptionist Work Spa',
     'spa desk job vacancy',
-    
+
     // Spa Manager / Supervisor Keywords
     'spa manager jobs',
     'spa supervisor jobs',
@@ -57,14 +57,14 @@ export const defaultMetadata: Metadata = {
     'spa operations manager',
     'luxury spa manager jobs',
     'spa manager job vacancy india',
-    
+
     // Housekeeping / Support Staff Keywords
     'spa housekeeping jobs',
     'spa attendant jobs',
     'spa helper jobs',
     'spa cleaning staff vacancy',
     'wellness center housekeeping jobs',
-    
+
     // Beauty / Wellness Specialist Keywords
     'beauty therapist jobs',
     'beauty Work Spa',
@@ -73,14 +73,14 @@ export const defaultMetadata: Metadata = {
     'cosmetologist jobs in spa',
     'aesthetic therapist jobs',
     'salon and Work Spa',
-    
+
     // Sales / Business / Support Keywords
     'spa sales executive jobs',
     'spa marketing executive',
     'spa telecaller jobs',
     'spa membership sales jobs',
     'wellness sales jobs',
-    
+
     // Location-Based Keywords (Major Cities)
     'Work Spa Mumbai',
     'Work Spa Delhi',
@@ -90,7 +90,7 @@ export const defaultMetadata: Metadata = {
     'Work Spa Chennai',
     'Work Spa Goa',
     'Work Spa Navi Mumbai',
-    
+
     // Near Me & High-Conversion Keywords
     'Work Spa near me',
     'massage therapist jobs near me',
@@ -210,9 +210,9 @@ export function generateJobListingMetadata(
   const locationText = location ? ` in ${location}` : '';
   const categoryText = category ? ` ${category}` : '';
   const countText = count ? `${count}+ ` : '';
-  
+
   const title = `${categoryText}Work Spa${locationText} | Find Work Spa${locationText}`;
-  const description = `Find ${countText}${categoryText.toLowerCase()} Work Spa${locationText.toLowerCase()}. Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
+  const description = `Find ${countText}${categoryText.toLowerCase()} Work Spa${locationText.toLowerCase()}. Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
 
   return generatePageMetadata(title, description, {
     keywords: location

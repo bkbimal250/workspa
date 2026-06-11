@@ -41,7 +41,43 @@ export interface DeviceBreakdown {
   tablet: number;
 }
 
+export interface ButtonClickTotals {
+  whatsapp: number;
+  call: number;
+  share: number;
+  apply: number;
+}
+
+export interface AnalyticsOverview {
+  total_jobs: number;
+  active_jobs: number;
+  featured_jobs: number;
+  total_applications: number;
+  application_status: {
+    pending: number;
+    reviewed: number;
+    accepted: number;
+    rejected: number;
+    unknown: number;
+  };
+  total_users: number;
+  active_users: number;
+  verified_users: number;
+  total_spas: number;
+  active_spas: number;
+  verified_spas: number;
+  button_clicks: ButtonClickTotals;
+  total_button_clicks: number;
+}
+
 export const analyticsAPI = {
+  getDashboardOverview: async (days?: number): Promise<AnalyticsOverview> => {
+    const response = await apiClient.get(`/api/analytics/dashboard-overview`, {
+      params: days ? { days } : {},
+    });
+    return response.data;
+  },
+
   getPopularLocations: async (limit: number = 10, days?: number): Promise<PopularLocation[]> => {
     const response = await apiClient.get(`/api/analytics/popular-locations`, { 
       params: { limit, ...(days ? { days } : {}) } 

@@ -16,12 +16,15 @@ interface LocationCreateFormProps {
     country_id?: number;
     state_id?: number;
     city_id?: number;
-  }) => Promise<void>;
+  }) => Promise<Country | State | City | Area>;
   initialData?: {
     country_id?: number;
     state_id?: number;
     city_id?: number;
   };
+  countries: Country[];
+  states: State[];
+  cities: City[];
 }
 
 interface RecentItem {
@@ -40,6 +43,9 @@ export default function LocationCreateForm({
   onClose,
   onSubmit,
   initialData,
+  countries,
+  states,
+  cities,
 }: LocationCreateFormProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -47,34 +53,34 @@ export default function LocationCreateForm({
     state_id: initialData?.state_id?.toString() || '',
     city_id: initialData?.city_id?.toString() || '',
   });
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [states, setStates] = useState<State[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
+  const [availableStates, setAvailableStates] = useState<State[]>(states);
+  const [availableCities, setAvailableCities] = useState<City[]>(cities);
   const [submitting, setSubmitting] = useState(false);
   const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
 
-  // Load all countries for cascading dropdowns
   useEffect(() => {
-    if (show) {
-      locationAPI.getCountries().then(setCountries).catch(console.error);
-    }
-  }, [show]);
+    setAvailableStates(states);
+  }, [states]);
+
+  useEffect(() => {
+    setAvailableCities(cities);
+  }, [cities]);
 
   // Load states when country is selected
   useEffect(() => {
     if (show && formData.country_id) {
-      locationAPI.getStates(parseInt(formData.country_id)).then(setStates).catch(console.error);
+      locationAPI.getStates(parseInt(formData.country_id)).then(setAvailableStates).catch(console.error);
     } else {
-      setStates([]);
+      setAvailableStates([]);
     }
   }, [show, formData.country_id]);
 
   // Load cities when state is selected
   useEffect(() => {
     if (show && formData.state_id) {
-      locationAPI.getCities(parseInt(formData.state_id), parseInt(formData.country_id)).then(setCities).catch(console.error);
+      locationAPI.getCities(parseInt(formData.state_id), parseInt(formData.country_id)).then(setAvailableCities).catch(console.error);
     } else {
-      setCities([]);
+      setAvailableCities([]);
     }
   }, [show, formData.state_id, formData.country_id]);
 
@@ -108,22 +114,26 @@ export default function LocationCreateForm({
     setSubmitting(true);
     try {
       const submitData = {
-        name: formData.name,
+        name: formData.name.trim(),
         country_id: formData.country_id ? parseInt(formData.country_id) : undefined,
         state_id: formData.state_id ? parseInt(formData.state_id) : undefined,
         city_id: formData.city_id ? parseInt(formData.city_id) : undefined,
       };
 
-      await onSubmit(submitData);
+      if (!submitData.name) {
+        throw new Error('Name is required');
+      }
+
+      const createdItem = await onSubmit(submitData);
       
       // Add to recent items for display
       const countryName = countries.find(c => c.id === parseInt(formData.country_id || '0'))?.name;
-      const stateName = states.find(s => s.id === parseInt(formData.state_id || '0'))?.name;
-      const cityName = cities.find(c => c.id === parseInt(formData.city_id || '0'))?.name;
+      const stateName = availableStates.find(s => s.id === parseInt(formData.state_id || '0'))?.name;
+      const cityName = availableCities.find(c => c.id === parseInt(formData.city_id || '0'))?.name;
 
       const newItem: RecentItem = {
-        id: Date.now(), // Temporary ID, will be updated when data refreshes
-        name: formData.name,
+        id: createdItem.id,
+        name: createdItem.name,
         type: activeTab,
         country: countryName,
         state: stateName,
@@ -215,7 +225,7 @@ export default function LocationCreateForm({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-5">
           {/* Hierarchical Structure - All Dropdowns */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
@@ -259,7 +269,7 @@ export default function LocationCreateForm({
                   disabled={!formData.country_id || activeTab === 'countries' || activeTab === 'states'}
                 >
                   <option value="">Select State</option>
-                  {states
+                  {availableStates
                     .filter((s) => !formData.country_id || s.country_id === parseInt(formData.country_id))
                     .map((state) => (
                       <option key={state.id} value={state.id}>
@@ -283,7 +293,7 @@ export default function LocationCreateForm({
                   disabled={!formData.state_id || activeTab === 'countries' || activeTab === 'states' || activeTab === 'cities'}
                 >
                   <option value="">Select City</option>
-                  {cities
+                  {availableCities
                     .filter((c) => {
                       if (!formData.state_id) return false;
                       return c.state_id === parseInt(formData.state_id);
@@ -335,7 +345,6 @@ export default function LocationCreateForm({
             </button>
             <button
               type="submit"
-              onClick={(e) => handleSubmit(e, false)}
               className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={submitting}
             >

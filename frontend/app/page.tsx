@@ -204,10 +204,10 @@ export default function HomePage() {
         return `${jobTitle}${salaryText}`;
       }).join('; ');
 
-      return `${baseDescription} ${jobExamples}. Search for therapist, masseuse, and spa manager positions.`;
+      return `${baseDescription} ${jobExamples}. Search for therapist, receptionist, and spa manager positions.`;
     }
 
-    return `${baseDescription} Search for therapist, masseuse, and spa manager positions.`;
+    return `${baseDescription} Search for therapist, receptionist, and spa manager positions.`;
   }, [featuredJobs, popularJobs, loadingFeatured, loadingPopular]);
 
   return (

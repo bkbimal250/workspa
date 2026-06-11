@@ -119,9 +119,9 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
   const hasActiveFilters = Object.values(filters).some((value) => value !== undefined && value !== null && value !== '');
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible">
       {/* Header */}
-      <div className="bg-gradient-to-r from-brand-600 to-brand-700 p-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-brand-600 to-brand-700 p-4 flex items-center justify-between rounded-t-xl">
         <div className="flex items-center gap-2">
           <FaFilter color="white" size={18} />
           <h3 className="text-lg font-semibold text-white">Filters</h3>
@@ -139,7 +139,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
 
       <div className="p-4 space-y-2">
         {/* Job Type Filter */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-visible">
           <button
             onClick={() => toggleSection('jobType')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
@@ -159,7 +159,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
               <select
                 value={filters.jobTypeId || ''}
                 onChange={(e) => updateFilter('jobTypeId', e.target.value ? parseInt(e.target.value) : undefined)}
-                className="w-full input-field text-sm border-gray-300 focus:border-brand-500 focus:ring-brand-500"
+                className="w-full h-11 input-field text-sm leading-5 border-gray-300 focus:border-brand-500 focus:ring-brand-500"
               >
                 <option value="">All Job Types</option>
                 {jobTypes.map((type) => (
@@ -173,7 +173,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
         </div>
 
         {/* Job Category Filter */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-visible">
           <button
             onClick={() => toggleSection('jobCategory')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
@@ -193,7 +193,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
               <select
                 value={filters.jobCategoryId || ''}
                 onChange={(e) => updateFilter('jobCategoryId', e.target.value ? parseInt(e.target.value) : undefined)}
-                className="w-full input-field text-sm border-gray-300 focus:border-brand-500 focus:ring-brand-500"
+                className="w-full h-11 input-field text-sm leading-5 border-gray-300 focus:border-brand-500 focus:ring-brand-500"
               >
                 <option value="">All Categories</option>
                 {jobCategories.map((category) => (
@@ -207,7 +207,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
         </div>
 
         {/* Location Filter */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-visible">
           <button
             onClick={() => toggleSection('location')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
@@ -316,7 +316,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
         </div>
 
         {/* Salary Filter */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-visible">
           <button
             onClick={() => toggleSection('salary')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
@@ -341,7 +341,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
                     placeholder="0"
                     value={filters.salaryMin || ''}
                     onChange={(e) => updateFilter('salaryMin', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full input-field text-sm border-gray-300 focus:border-brand-500 focus:ring-brand-500"
+                    className="w-full h-11 input-field text-sm leading-5 border-gray-300 focus:border-brand-500 focus:ring-brand-500"
                   />
                 </div>
                 <div>
@@ -351,7 +351,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
                     placeholder="Any"
                     value={filters.salaryMax || ''}
                     onChange={(e) => updateFilter('salaryMax', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full input-field text-sm border-gray-300 focus:border-brand-500 focus:ring-brand-500"
+                    className="w-full h-11 input-field text-sm leading-5 border-gray-300 focus:border-brand-500 focus:ring-brand-500"
                   />
                 </div>
               </div>
@@ -384,7 +384,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
         </div>
 
         {/* Experience Filter */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-visible">
           <button
             onClick={() => toggleSection('experience')}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
@@ -409,7 +409,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
                     placeholder="0"
                     value={filters.experienceMin || ''}
                     onChange={(e) => updateFilter('experienceMin', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full input-field text-sm border-gray-300 focus:border-brand-500 focus:ring-brand-500"
+                    className="w-full h-11 input-field text-sm leading-5 border-gray-300 focus:border-brand-500 focus:ring-brand-500"
                   />
                 </div>
                 <div>
@@ -419,7 +419,7 @@ export default function JobFilters({ onFilterChange, initialFilters = {} }: JobF
                     placeholder="Any"
                     value={filters.experienceMax || ''}
                     onChange={(e) => updateFilter('experienceMax', e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full input-field text-sm border-gray-300 focus:border-brand-500 focus:ring-brand-500"
+                    className="w-full h-11 input-field text-sm leading-5 border-gray-300 focus:border-brand-500 focus:ring-brand-500"
                   />
                 </div>
               </div>

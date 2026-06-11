@@ -97,6 +97,8 @@ export default function Footer() {
               <li><Link href="/jobs" className="text-white/80 hover:text-white">Browse Jobs</Link></li>
               <li><Link href="/jobs?is_featured=true" className="text-white/80 hover:text-white">Featured Jobs</Link></li>
               <li><Link href="/spa-near-me" className="text-white/80 hover:text-white">SPAs Near Me</Link></li>
+              <li><Link href="/spa-jobs-near-me" className="text-white/80 hover:text-white">Spa Jobs Near Me</Link></li>
+              <li><Link href="/blog" className="text-white/80 hover:text-white">Career Blog</Link></li>
               <li><Link href="/jobs?job_type=full-time" className="text-white/80 hover:text-white">Full Time Jobs</Link></li>
               <li><Link href="/jobs?job_type=part-time" className="text-white/80 hover:text-white">Part Time Jobs</Link></li>
             </ul>
@@ -207,6 +209,7 @@ export default function Footer() {
               <Link href="/terms" className="text-white/70 hover:text-white">Terms of Service</Link>
               <Link href="/about" className="text-white/70 hover:text-white">About Us</Link>
               <Link href="/contact" className="text-white/70 hover:text-white">Contact</Link>
+              <Link href="/sitemap" className="text-white/70 hover:text-white">Sitemap</Link>
             </div>
           </div>
         </div>

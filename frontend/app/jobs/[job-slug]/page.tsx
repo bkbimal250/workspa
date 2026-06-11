@@ -10,9 +10,10 @@ import { spaAPI, Spa } from '@/lib/spa';
 import { applicationAPI } from '@/lib/application';
 import axios from 'axios';
 import Link from 'next/link';
-import SEOHead from '@/components/SEOHead';
 import { showToast, showErrorToast } from '@/lib/toast';
 import CategoryLocationSearch from './CategoryLocationSearch';
+import RoleLandingPage from '@/components/RoleLandingPage';
+import { getRoleLandingPage } from '@/lib/content/seo-pages';
 import {
   JobHeader,
   JobDetailsCard,
@@ -50,6 +51,10 @@ export default function JobDetailPage() {
   // Handle SEO Search Route Detection
   if (slug?.includes('-jobs-in-')) {
     return <CategoryLocationSearch slug={slug} />;
+  }
+
+  if (slug && getRoleLandingPage(slug)) {
+    return <RoleLandingPage slug={slug} />;
   }
 
   useEffect(() => {
@@ -103,24 +108,8 @@ export default function JobDetailPage() {
   const fetchRelatedJobs = async () => {
     try {
       if (!job) return;
-
-      const queryParams: any = { limit: 6 };
-
-      if (job.job_category) {
-        const categoryName = typeof job.job_category === 'string'
-          ? job.job_category
-          : job.job_category.name;
-        if (categoryName) {
-          queryParams.job_category = categoryName;
-        }
-      }
-      if (job.city_id) {
-        queryParams.city_id = job.city_id;
-      }
-
-      const jobs = await jobAPI.getAllJobs(queryParams);
-      const filtered = jobs.filter(j => j.id !== job.id).slice(0, 5);
-      setRelatedJobs(filtered);
+      const jobs = await jobAPI.getRelatedJobs(job.id, 5);
+      setRelatedJobs(jobs);
     } catch (error) {
       console.error('Error fetching related jobs:', error);
     }
@@ -415,32 +404,6 @@ export default function JobDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface-light">
-      {/* Dynamic SEO Metadata */}
-      <SEOHead
-        title={`${job.title} at ${job.spa?.name || 'SPA'} - ${locationStr}`}
-        description={`Apply for ${job.title} position at ${job.spa?.name || 'SPA'} in ${locationStr}. ${salaryStr !== 'Not Disclosed' ? `Salary: ${salaryStr}. ` : ''}View job details, requirements, and apply directly.`}
-        keywords={[
-          job.title.toLowerCase(),
-          `${job.title} jobs`,
-          `Work Spa ${locationStr}`,
-          job.spa?.name?.toLowerCase() || '',
-          typeof job.job_category === 'string' ? job.job_category : job.job_category?.name || '',
-        ]}
-        url={`${siteUrl}/jobs/${job.slug}`}
-      />
-      {/* Structured Data for SEO */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
       <Navbar />
 
       {/* Message Form Popup */}

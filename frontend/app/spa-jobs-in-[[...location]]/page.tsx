@@ -173,11 +173,11 @@ export default function LocationJobsPage() {
         });
 
       if (jobExamples.length > 0) {
-        return `${baseDescription} ${jobExamples.join('; ')}. Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
+        return `${baseDescription} ${jobExamples.join('; ')}. Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
       }
     }
 
-    return `${baseDescription} Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
+    return `${baseDescription} Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
   }, [locationDisplayName, jobCount, paginatedJobs, loading]);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
@@ -258,7 +258,7 @@ export default function LocationJobsPage() {
         name: `Where can I find the best spa jobs in ${locationDisplayName}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `You can find a variety of spa therapist, masseuse, and spa manager jobs in ${locationDisplayName} on Workspa.in. Use our filters to find roles that match your experience and salary expectations.`
+          text: `You can find a variety of spa therapist, receptionist, and spa manager jobs in ${locationDisplayName} on Workspa.in. Use our filters to find roles that match your experience and salary expectations.`
         }
       },
       {

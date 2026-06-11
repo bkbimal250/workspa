@@ -46,6 +46,9 @@ export default function Navbar() {
             <Link href="/spa-near-me" className="text-white/90 hover:text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
               SPAs Near Me
             </Link>
+            <Link href="/blog" className="text-white/90 hover:text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+              Blog
+            </Link>
             {user ? (
               <>
                 <Link href="/dashboard" className="text-white/90 hover:text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
@@ -120,6 +123,13 @@ export default function Navbar() {
               className="block px-4 py-3 text-white/90 hover:bg-white/10 hover:text-white rounded-md font-medium transition-colors active:bg-white/20"
             >
               SPAs Near Me
+            </Link>
+            <Link
+              href="/blog"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 text-white/90 hover:bg-white/10 hover:text-white rounded-md font-medium transition-colors active:bg-white/20"
+            >
+              Blog
             </Link>
             {user ? (
               <>

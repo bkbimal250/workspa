@@ -25,7 +25,7 @@ export async function generateMetadata({
     } catch (e) { }
 
     const title = `Work Spa in ${cityName} - Find ${jobCount > 0 ? jobCount : ''} Jobs | Workspa.in`;
-    const description = `Find the latest spa therapist, masseuse, and spa manager jobs in ${cityName} on Workspa.in. ${jobCount > 0 ? `We have ${jobCount} active openings.` : 'Browse openings and apply directly.'}`;
+    const description = `Find the latest spa therapist, receptionist, and spa manager jobs in ${cityName} on Workspa.in. ${jobCount > 0 ? `We have ${jobCount} active openings.` : 'Browse openings and apply directly.'}`;
 
     return {
       title,

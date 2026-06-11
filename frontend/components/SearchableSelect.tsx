@@ -110,15 +110,15 @@ export default function SearchableSelect({
         ref={buttonRef}
         type="button"
         onClick={handleButtonClick}
-        className={`w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm text-left flex items-center justify-between ${
+        className={`w-full h-11 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all text-sm text-left flex items-center justify-between gap-2 ${
           disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white cursor-pointer hover:border-gray-400'
         }`}
         disabled={disabled}
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-500'}>
+        <span className={`min-w-0 flex-1 truncate leading-5 ${value ? 'text-gray-900' : 'text-gray-500'}`}>
           {value ? selectedOption?.name : placeholder}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-shrink-0 items-center gap-2">
           {value && !disabled && (
             <button
               type="button"

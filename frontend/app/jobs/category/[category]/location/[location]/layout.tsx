@@ -94,7 +94,7 @@ export async function generateMetadata({
       : `${baseTitle} | Workspa.in`;
 
     const title = fullTitle;
-    const description = `Find ${jobCountText}${categoryName.toLowerCase()} jobs in ${locationName}. Browse therapist, masseuse, and spa manager positions. Apply directly to spas without login.`;
+    const description = `Find ${jobCountText}${categoryName.toLowerCase()} jobs in ${locationName}. Browse therapist, receptionist, and spa manager positions. Apply directly to spas without login.`;
 
     const pageUrl = `${siteUrl}/jobs/category/${categorySlug}/location/${locationSlug}`;
 

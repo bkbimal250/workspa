@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 import { generateJobMetadata, generateSearchMetadata } from './metadata';
+import { getRoleLandingPage } from '@/lib/content/seo-pages';
+import {
+  generateJobBreadcrumbSchema,
+  generateJobFaqSchema,
+  generateJobPostingSchema,
+} from '@/lib/job-schema';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
 
 interface JobDetailLayoutProps {
   children: React.ReactNode;
@@ -15,8 +22,29 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const slug = params['job-slug'];
 
+  const rolePage = getRoleLandingPage(slug);
+  if (rolePage) {
+    const url = `${siteUrl}/jobs/${rolePage.slug}`;
+    return {
+      title: `${rolePage.title} | Workspa`,
+      description: rolePage.description,
+      alternates: { canonical: url },
+      openGraph: {
+        title: `${rolePage.title} | Workspa`,
+        description: rolePage.description,
+        url,
+        type: 'website',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${rolePage.title} | Workspa`,
+        description: rolePage.description,
+      },
+    };
+  }
+
   // Detect if this is a Category-Location search page
-  if (slug.includes('-jobs-in-')) {
+  if (apiUrl && slug.includes('-jobs-in-')) {
     try {
       const match = slug.match(/(.+)-jobs-in-(.+)/);
       if (match) {
@@ -62,6 +90,13 @@ export async function generateMetadata({
 
   // Otherwise, handle as Job Detail page
   try {
+    if (!apiUrl) {
+      return {
+        title: 'Work Spa Jobs | Workspa.in',
+        description: 'View detailed information about this spa job opportunity.',
+      };
+    }
+
     const jobResponse = await fetch(`${apiUrl}/api/jobs/slug/${slug}`, {
       cache: 'no-store',
     });
@@ -99,8 +134,45 @@ export async function generateMetadata({
   }
 }
 
-export default function JobDetailLayout({
+async function getJobForSchema(slug: string) {
+  if (!apiUrl || slug.includes('-jobs-in-') || getRoleLandingPage(slug)) return null;
+
+  try {
+    const response = await fetch(`${apiUrl}/api/jobs/slug/${slug}`, {
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export default async function JobDetailLayout({
   children,
+  params,
 }: JobDetailLayoutProps) {
-  return <>{children}</>;
+  const job = await getJobForSchema(params['job-slug']);
+
+  if (!job) {
+    return <>{children}</>;
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJobPostingSchema(job)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJobFaqSchema(job)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateJobBreadcrumbSchema(job)) }}
+      />
+      {children}
+    </>
+  );
 }

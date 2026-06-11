@@ -9,26 +9,26 @@ export async function generateMetadata({
   // Handle catch-all route: location is an array
   const locationArray = Array.isArray(params.location) ? params.location : (params.location ? [params.location] : []);
   const locationSlug = locationArray.join('-');
-  
+
   if (!locationSlug) {
     return {
       title: 'Work Spa | Find Work Spa',
-      description: 'Find Work Spa. Browse therapist, masseuse, and spa manager positions.',
+      description: 'Find Work Spa. Browse therapist, receptionist, and spa manager positions.',
     };
   }
-  
+
   // Format location name from slug
   const locationName = locationSlug
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-  
+
   const title = `Work Spa in ${locationName} | Find Work Spa`;
-  const description = `Find Work Spa in ${locationName}. Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
-  
+  const description = `Find Work Spa in ${locationName}. Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
+
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
   const pageUrl = `${siteUrl}/spa-jobs-in-${locationSlug}`;
-  
+
   return generatePageMetadata(title, description, {
     keywords: [
       `Work Spa ${locationName}`,

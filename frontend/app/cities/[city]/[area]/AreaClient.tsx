@@ -133,11 +133,11 @@ export default function AreaClient({
                 });
 
             if (jobExamples.length > 0) {
-                return `${baseDescription} ${jobExamples.join('; ')}. Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
+                return `${baseDescription} ${jobExamples.join('; ')}. Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
             }
         }
 
-        return `${baseDescription} Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
+        return `${baseDescription} Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
     }, [locationDisplayName, jobCount, jobs, loading]);
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
@@ -324,7 +324,7 @@ export default function AreaClient({
                 <div className="flex flex-wrap gap-4">
                     {[
                         { name: 'Therapist', slug: 'therapist' },
-                        { name: 'Masseuse', slug: 'masseuse' },
+                        { name: 'receptionist', slug: 'receptionist' },
                         { name: 'Spa Manager', slug: 'spa-manager' }
                     ].map((category) => (
                         <Link
@@ -338,6 +338,33 @@ export default function AreaClient({
                     ))}
                 </div>
             </div>
+
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-3">Spa jobs in {locationDisplayName}</h2>
+                        <p className="text-gray-700 leading-relaxed">
+                            Browse nearby openings in {locationDisplayName} for spa therapist, receptionist, beautician, housekeeping,
+                            and spa manager roles. Candidates can compare travel distance, work timing, salary, and direct HR contact
+                            before applying.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-3">Nearby job searches</h3>
+                        <div className="space-y-2">
+                            <Link href={`/cities/${params.city}`} className="block text-brand-700 hover:text-brand-800 font-medium">
+                                All spa jobs in {cityName}
+                            </Link>
+                            <Link href={`/jobs/spa-therapist-jobs-in-${params.area}-${params.city}`} className="block text-brand-700 hover:text-brand-800 font-medium">
+                                Therapist jobs in {areaName}
+                            </Link>
+                            <Link href="/spa-jobs-near-me" className="block text-brand-700 hover:text-brand-800 font-medium">
+                                Spa jobs near me
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {/* Job Listings */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

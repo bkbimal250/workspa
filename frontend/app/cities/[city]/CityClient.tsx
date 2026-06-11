@@ -72,7 +72,7 @@ export default function CityClient({ params }: { params: { city: string } }) {
             if (cityData) {
                 setCategories([
                     { name: 'Therapist', slug: 'therapist', count: cityData.job_count },
-                    { name: 'Masseuse', slug: 'masseuse', count: cityData.job_count },
+                    { name: 'receptionist', slug: 'receptionist', count: cityData.job_count },
                     { name: 'Spa Manager', slug: 'spa-manager', count: cityData.job_count },
                 ]);
             }
@@ -169,7 +169,7 @@ export default function CityClient({ params }: { params: { city: string } }) {
                 name: `How can I find spa jobs in ${cityName}?`,
                 acceptedAnswer: {
                     "@type": "Answer",
-                    text: `You can browse the latest spa jobs in ${cityName} on Workspa.in. We offer positions for therapists, masseuses, and managers.`
+                    text: `You can browse the latest spa jobs in ${cityName} on Workspa.in. We offer positions for therapists, receptionists, and managers.`
                 }
             },
             {
@@ -254,6 +254,32 @@ export default function CityClient({ params }: { params: { city: string } }) {
                     </div>
                 </div>
             )}
+
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-3">Spa jobs in {cityName}</h2>
+                        <p className="text-gray-700 leading-relaxed">
+                            Workspa lists active spa therapist, receptionist, beautician, housekeeping, and spa manager jobs in {cityName}.
+                            Use this city page to compare openings by area, salary, timing, experience, and direct contact options before applying.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-3">Popular searches</h3>
+                        <div className="space-y-2">
+                            <Link href={`/jobs/spa-therapist-jobs-in-${params.city}`} className="block text-brand-700 hover:text-brand-800 font-medium">
+                                Spa therapist jobs in {cityName}
+                            </Link>
+                            <Link href={`/jobs/receptionist-jobs-in-${params.city}`} className="block text-brand-700 hover:text-brand-800 font-medium">
+                                Receptionist jobs in {cityName}
+                            </Link>
+                            <Link href={`/jobs/spa-manager-jobs-in-${params.city}`} className="block text-brand-700 hover:text-brand-800 font-medium">
+                                Spa manager jobs in {cityName}
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             {/* Job Listings */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

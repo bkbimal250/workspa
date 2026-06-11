@@ -26,7 +26,7 @@ export default function SEOHead({
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
   const siteName = 'Apply for Spa Jobs in India | Apply Female spa therapist jobs | Apply spa manager jobs | Work Spa Portal';
   const pageTitle = title ? `${title} | ${siteName}` : `${siteName}`;
-  const pageDescription = description || 'Apply for Spa Jobs in India. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience. Search for therapist, masseuse, and spa manager positions.';
+  const pageDescription = description || 'Apply for Spa Jobs in India. Apply directly to spas without login. Browse thousands of Work Spa by location, salary, and experience. Search for therapist, receptionist, and spa manager positions.';
   const pageUrl = url || siteUrl;
   const pageImage = image || `${siteUrl}/og-image.jpg`;
   const keywordsString = keywords?.join(', ') || 'Apply for Spa Jobs in India, Apply Female spa therapist jobs, Apply spa manager jobs, Work Spa in india, spa job vacancy, spa job near me, spa therapist jobs, massage therapist jobs, spa manager jobs, beauty Work Spa, wellness jobs india, luxury Work Spa, female therapist jobs, male therapist jobs, spa hiring today, spa careers, spa employment, spa hiring';

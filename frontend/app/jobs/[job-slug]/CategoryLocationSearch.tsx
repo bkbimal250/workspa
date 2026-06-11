@@ -183,7 +183,7 @@ export default function CategoryLocationSearch({ slug }: CategoryLocationSearchP
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://workspa.in';
     const pageUrl = `${siteUrl}/jobs/${slug}`;
-    const description = `Find ${jobCount > 0 ? jobCount : ''} ${categoryName} jobs in ${locationDisplayName}. Browse therapist, masseuse, and spa manager positions. Apply directly without login.`;
+    const description = `Find ${jobCount > 0 ? jobCount : ''} ${categoryName} jobs in ${locationDisplayName}. Browse therapist, receptionist, and spa manager positions. Apply directly without login.`;
 
     const paginatedJobs = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;

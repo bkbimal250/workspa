@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import JobCard from '@/components/JobCard';
 import JobFilters from '@/components/JobFilters';
 import Navbar from '@/components/Navbar';
 import Pagination from '@/components/Pagination';
 import { jobAPI, Job } from '@/lib/job';
 import { analyticsAPI } from '@/lib/analytics';
-import Link from 'next/link';
 import { useLocation } from '@/hooks/useLocation';
-import { FaMapMarkerAlt, FaCrosshairs } from 'react-icons/fa';
-import SEOHead from '@/components/SEOHead';
 
 interface FilterState {
   jobTypeId?: number;
@@ -29,7 +26,6 @@ interface FilterState {
 
 function JobsPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalJobs, setTotalJobs] = useState(0);
@@ -104,13 +100,15 @@ function JobsPageContent() {
     // Fetch jobs - if filters use jobTypeId or jobCategoryId, we need the arrays loaded
     // But we can still fetch if arrays aren't loaded yet (they'll be empty filters)
     fetchJobs();
-  }, [searchParams, sortBy, filters, useNearMe, userLocation, jobCategoryParam, jobTypes, jobCategories]);
+  }, [searchParams, sortBy, filters, useNearMe, userLocation, jobCategoryParam, jobTypes, jobCategories, currentPage]);
 
   const fetchJobs = async () => {
     setLoading(true);
     try {
       const params: any = {
-        limit: 1000, // Fetch all jobs (increased from 100 to show all 463+ jobs)
+        skip: (currentPage - 1) * itemsPerPage,
+        limit: itemsPerPage,
+        sort_by: sortBy,
       };
 
       if (searchQuery) {
@@ -170,36 +168,16 @@ function JobsPageContent() {
           area_id: filters.areaId,
           job_type: filters.jobTypeId ? jobTypes.find(t => t.id === filters.jobTypeId)?.name : undefined,
           job_category: jobCategoryParam || (filters.jobCategoryId ? jobCategories.find(c => c.id === filters.jobCategoryId)?.name : undefined),
+          q: searchQuery || undefined,
+          location: locationQuery || undefined,
+          salary_min: filters.salaryMin,
+          salary_max: filters.salaryMax,
+          experience_years_min: filters.experienceMin,
+          experience_years_max: filters.experienceMax,
         }),
       ]);
 
-      let data = jobsData;
-
-      // Client-side location filtering if location parameter is provided as string
-      if (locationQuery && !params.city_id && !params.state_id && !params.area_id) {
-        const locationLower = locationQuery.toLowerCase();
-        data = data.filter(job => {
-          const cityName = job.city?.name?.toLowerCase() || '';
-          const areaName = job.area?.name?.toLowerCase() || '';
-          const stateName = job.state?.name?.toLowerCase() || '';
-          const locationStr = [areaName, cityName, stateName].filter(Boolean).join(' ');
-          return locationStr.includes(locationLower) ||
-            cityName.includes(locationLower) ||
-            areaName.includes(locationLower);
-        });
-      }
-
-      // Client-side text search filtering if q parameter is provided
       if (searchQuery) {
-        const queryLower = searchQuery.toLowerCase();
-        data = data.filter(job =>
-          job.title.toLowerCase().includes(queryLower) ||
-          job.description?.toLowerCase().includes(queryLower) ||
-          job.spa?.name.toLowerCase().includes(queryLower) ||
-          job.job_category?.name.toLowerCase().includes(queryLower) ||
-          job.job_type?.name.toLowerCase().includes(queryLower)
-        );
-
         // Track job search
         analyticsAPI.trackEvent('job_search', {
           search_query: searchQuery,
@@ -209,13 +187,8 @@ function JobsPageContent() {
         }).catch(() => { }); // Silently fail - analytics should not break the app
       }
 
-      setJobs(data);
-      // Use the count from API, but if we have client-side filters, use filtered length
-      if (locationQuery || searchQuery) {
-        setTotalJobs(data.length);
-      } else {
-        setTotalJobs(countData.count);
-      }
+      setJobs(jobsData);
+      setTotalJobs(countData.count);
     } catch (error) {
       console.error('Error fetching jobs:', error);
       // Fallback: use jobs length if count API fails
@@ -233,49 +206,14 @@ function JobsPageContent() {
     setSortBy(newSort);
   };
 
-  // Sort and filter jobs based on sortBy
   const sortedJobs = useMemo(() => {
-    let sorted = [...jobs];
-
-    switch (sortBy) {
-      case 'recent':
-        // Sort by created_at descending (newest first)
-        sorted.sort((a, b) => {
-          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return dateB - dateA;
-        });
-        break;
-      case 'popular':
-        // Sort by view_count descending
-        sorted.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
-        break;
-      case 'salary':
-        // Sort by salary_min descending (highest first)
-        sorted.sort((a, b) => {
-          const salaryA = a.salary_min || 0;
-          const salaryB = b.salary_min || 0;
-          return salaryB - salaryA;
-        });
-        break;
-      default:
-        // Default: recent
-        sorted.sort((a, b) => {
-          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return dateB - dateA;
-        });
-    }
-
-    return sorted;
-  }, [jobs, sortBy]);
+    return jobs;
+  }, [jobs]);
 
   // Paginate sorted jobs
   const paginatedJobs = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return sortedJobs.slice(startIndex, endIndex);
-  }, [sortedJobs, currentPage, itemsPerPage]);
+    return sortedJobs;
+  }, [sortedJobs]);
 
   // Reset to page 1 when filters or sort changes
   useEffect(() => {
@@ -356,31 +294,10 @@ function JobsPageContent() {
       }
     }
 
-    parts.push('Browse therapist, masseuse, and spa manager positions. Apply directly without login.');
+    parts.push('Browse therapist, receptionist, and spa manager positions. Apply directly without login.');
 
     return parts.join(' ');
   }, [searchQuery, effectiveLocation, totalJobs, jobs, loading]);
-
-  const metadataKeywords = useMemo(() => {
-    const keywords: string[] = [];
-
-    if (searchQuery) {
-      keywords.push(searchQuery.toLowerCase());
-      keywords.push(`${searchQuery.toLowerCase()} jobs`);
-    }
-
-    if (effectiveLocation) {
-      keywords.push(`Work Spa ${effectiveLocation}`);
-      keywords.push(`Work Spa in ${effectiveLocation}`);
-      if (searchQuery) {
-        keywords.push(`${searchQuery.toLowerCase()} jobs in ${effectiveLocation}`);
-      }
-    }
-
-    keywords.push('Work Spa', 'spa therapist jobs', 'massage therapist jobs');
-
-    return keywords;
-  }, [searchQuery, effectiveLocation]);
 
   // Build canonical URL with current params
   const canonicalUrl = useMemo(() => {
@@ -506,7 +423,7 @@ function JobsPageContent() {
         name: 'How do I find the best spa jobs on Workspa.in?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'You can explore a wide range of opportunities including Therapist, Masseuse, and Spa Manager roles on Workspa.in. Use our filters to sort by location, category, and salary to find the perfect match for your skills.'
+          text: 'You can explore a wide range of opportunities including Therapist, receptionist, and Spa Manager roles on Workspa.in. Use our filters to sort by location, category, and salary to find the perfect match for your skills.'
         }
       },
       {
@@ -522,14 +439,6 @@ function JobsPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Dynamic SEO Metadata */}
-      <SEOHead
-        title={metadataTitle}
-        description={metadataDescription}
-        keywords={metadataKeywords}
-        url={canonicalUrl}
-      />
-
       {/* Structured Data for SEO */}
       <script
         type="application/ld+json"
@@ -686,11 +595,11 @@ function JobsPageContent() {
                 </div>
 
                 {/* Pagination */}
-                {sortedJobs.length > itemsPerPage && (
+                {totalJobs > itemsPerPage && (
                   <div className="mt-6">
                     <Pagination
                       currentPage={currentPage}
-                      totalItems={sortedJobs.length}
+                      totalItems={totalJobs}
                       itemsPerPage={itemsPerPage}
                       onPageChange={setCurrentPage}
                     />
