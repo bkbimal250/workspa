@@ -2,7 +2,7 @@
 SPA models
 """
 
-from sqlalchemy import Column, Integer, String, Text, Float, Boolean, ForeignKey, JSON, DateTime, event, select
+from sqlalchemy import Column, Integer, String, Text, Float, Boolean, ForeignKey, JSON, DateTime, event, select, Index
 from sqlalchemy.orm import relationship
 from slugify import slugify
 from datetime import datetime
@@ -11,6 +11,10 @@ from app.core.database import Base
 
 class Spa(Base):
     __tablename__ = "spas"
+    __table_args__ = (
+        Index("idx_spas_active_city_area", "is_active", "city_id", "area_id"),
+        Index("idx_spas_active_slug", "is_active", "slug"),
+    )
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)

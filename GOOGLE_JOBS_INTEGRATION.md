@@ -132,7 +132,7 @@ When someone searches "therapist jobs in mumbai" on Google:
 
 ### Category + Location Pages
 - `/jobs/category/therapist/location/mumbai`
-- `/jobs/category/masseuse/location/delhi`
+- `/jobs/category/receptionist/location/delhi`
 - `/jobs/category/spa-manager/location/bangalore`
 - ... (automatically generated for all combinations with 5+ jobs)
 

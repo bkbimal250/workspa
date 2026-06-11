@@ -2,7 +2,7 @@
 Job models
 """
 
-from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, event, select
+from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, event, select, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from slugify import slugify
@@ -41,6 +41,12 @@ class JobCategory(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        Index("idx_jobs_active_created_at", "is_active", "created_at"),
+        Index("idx_jobs_active_city_category", "is_active", "city_id", "job_category_id"),
+        Index("idx_jobs_active_area_category", "is_active", "area_id", "job_category_id"),
+        Index("idx_jobs_active_slug", "is_active", "slug"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 

@@ -186,31 +186,30 @@ def register(
     return user
 
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.LoginResponse, response_model_exclude_none=True)
 def login(
     login_data: schemas.UserLogin,
     db: Session = Depends(get_db)
 ):
-    """
-    Login with email and password.
-    Returns JWT access token for authenticated requests.
-    """
     user = services.authenticate_user(db, login_data.email, login_data.password)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
     )
-    
+
     return {
+        "message": "Login successful",
         "access_token": access_token,
-        "token_type": "bearer",
-        "user": user
+        "token_type": "bearer"
     }
 
 
@@ -438,13 +437,6 @@ def delete_user(
     current_user: models.User = Depends(require_role([UserRole.ADMIN])),
     db: Session = Depends(get_db)
 ):
-    """
-    Delete a user (admin only).
-    
-    - permanent=True: Permanently delete from database
-    - permanent=False: Soft delete (set is_active=False)
-    """
     success = services.delete_user(db, user_id, permanent=permanent)
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
-    return None

@@ -57,6 +57,26 @@ def get_spas_near_me(
     return services.get_spas_near_location(db, latitude, longitude, radius_km)
 
 
+@router.get("/public", response_model=List[schemas.SpaResponse])
+def get_public_spas(
+    skip: int = 0,
+    limit: int = Query(100, ge=1, le=1000),
+    city_id: Optional[int] = None,
+    area_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Get active SPAs for public SEO pages and sitemap generation."""
+    from app.modules.spas.models import Spa
+
+    query = db.query(Spa).filter(Spa.is_active == True)
+    if city_id is not None:
+        query = query.filter(Spa.city_id == city_id)
+    if area_id is not None:
+        query = query.filter(Spa.area_id == area_id)
+
+    return query.order_by(Spa.updated_at.desc()).offset(skip).limit(limit).all()
+
+
 @router.get("/slug/{slug}", response_model=schemas.SpaResponse)
 def get_spa_by_slug(slug: str, db: Session = Depends(get_db)):
     """Get SPA by slug"""

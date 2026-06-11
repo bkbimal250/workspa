@@ -27,17 +27,29 @@ from app.modules.contact.routes import router as contact_router
 from app.modules.whatsaapLeads.routes import router as whatsaap_leads_router
 
 
+# # -------------------------------------------------
+# # App Initializationfor production
+# # -------------------------------------------------
+# app = FastAPI(
+#     title="SPA Job Portal API",
+#     description="Location-intelligent, SEO-first SPA Job Portal Backend",
+#     version="1.0.0",
+#     docs_url="/api/docs" if settings.LOG_LEVEL == "DEBUG" else None,
+#     redoc_url="/api/redoc" if settings.LOG_LEVEL == "DEBUG" else None,
+# )
+
+
+
 # -------------------------------------------------
-# App Initialization
+# App Initialization developement
 # -------------------------------------------------
 app = FastAPI(
     title="SPA Job Portal API",
     description="Location-intelligent, SEO-first SPA Job Portal Backend",
     version="1.0.0",
-    docs_url="/api/docs" if settings.LOG_LEVEL == "DEBUG" else None,
-    redoc_url="/api/redoc" if settings.LOG_LEVEL == "DEBUG" else None,
+    docs_url="/docs",     # ✅ always enabled
+    redoc_url="/redoc",
 )
-
 
 # -------------------------------------------------
 # Middleware

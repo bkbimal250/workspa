@@ -4,7 +4,7 @@ Job API routes
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import List
 from app.core.database import get_db
 from app.modules.jobs import schemas, services
@@ -306,6 +306,13 @@ def get_jobs(
     job_type: str | None = None,
     job_category: str | None = None,
     is_featured: bool | None = None,
+    q: str | None = None,
+    location: str | None = None,
+    salary_min: int | None = None,
+    salary_max: int | None = None,
+    experience_years_min: int | None = None,
+    experience_years_max: int | None = None,
+    sort_by: str = "recent",
     db: Session = Depends(get_db),
 ):
     """
@@ -328,6 +335,13 @@ def get_jobs(
         job_type=job_type,
         job_category=job_category,
         is_featured=is_featured,
+        q=q,
+        location=location,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        experience_years_min=experience_years_min,
+        experience_years_max=experience_years_max,
+        sort_by=sort_by,
     )
 
 
@@ -339,6 +353,12 @@ def get_job_count(
     area_id: int | None = None,
     job_type: str | None = None,
     job_category: str | None = None,
+    q: str | None = None,
+    location: str | None = None,
+    salary_min: int | None = None,
+    salary_max: int | None = None,
+    experience_years_min: int | None = None,
+    experience_years_max: int | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -365,9 +385,57 @@ def get_job_count(
             query = query.join(JobCategory).filter(JobCategory.name == job_category)
         else:
             query = query.filter(Job.job_category_id == job_category)
+    if salary_min is not None:
+        query = query.filter(Job.salary_min >= salary_min)
+    if salary_max is not None:
+        query = query.filter(or_(Job.salary_max <= salary_max, Job.salary_min <= salary_max))
+    if experience_years_min is not None:
+        query = query.filter(Job.experience_years_min >= experience_years_min)
+    if experience_years_max is not None:
+        query = query.filter(or_(Job.experience_years_max <= experience_years_max, Job.experience_years_min <= experience_years_max))
+    if q:
+        from app.modules.spas.models import Spa
+        search = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Job.title.ilike(search),
+                Job.description.ilike(search),
+                Job.spa.has(Spa.name.ilike(search)),
+                Job.job_category.has(JobCategory.name.ilike(search)),
+                Job.job_type.has(JobType.name.ilike(search)),
+            )
+        )
+    if location:
+        loc_search = f"%{location.strip()}%"
+        query = query.filter(
+            or_(
+                Job.city.has(City.name.ilike(loc_search)),
+                Job.area.has(Area.name.ilike(loc_search)),
+                Job.state.has(State.name.ilike(loc_search)),
+            )
+        )
     
     count = query.count()
     return {"count": count}
+
+
+@router.get("/recent", response_model=list[schemas.JobResponse])
+def get_recent_jobs(
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    """Get newest active jobs."""
+    return services.get_recent_jobs(db, limit=limit)
+
+
+@router.get("/related/{job_id}", response_model=list[schemas.JobResponse])
+def get_related_jobs(
+    job_id: int,
+    limit: int = 6,
+    db: Session = Depends(get_db),
+):
+    """Get jobs related by category and city."""
+    return services.get_related_jobs(db, job_id=job_id, limit=limit)
 
 
 @router.get("/counts-by-location")

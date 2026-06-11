@@ -2,7 +2,7 @@
 Location models (Country, State, City, Area, ResolvedLocation)
 """
 
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Index
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -56,6 +56,9 @@ class City(Base):
 
 class Area(Base):
     __tablename__ = "areas"
+    __table_args__ = (
+        UniqueConstraint("city_id", "name", name="uq_areas_city_id_name"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)

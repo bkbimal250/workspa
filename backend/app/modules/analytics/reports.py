@@ -10,6 +10,12 @@ from sqlalchemy.orm import Session
 from app.modules.analytics.models import AnalyticsEvent, JobButtonClickAnalytics
 
 
+def _since(days: int | None) -> datetime | None:
+    if days is not None and days > 0:
+        return datetime.utcnow() - timedelta(days=days)
+    return None
+
+
 def get_popular_locations(db: Session, limit: int = 10, days: int | None = None):
     """
     Get most popular locations by event count.
@@ -294,3 +300,91 @@ def get_button_clicks_by_day(
         }
         for row in results
     ]
+
+
+def get_button_click_totals_by_type(db: Session, days: int | None = None):
+    """Get total job action clicks grouped by button type."""
+    query = db.query(
+        JobButtonClickAnalytics.button_type,
+        func.count(JobButtonClickAnalytics.id).label("count"),
+    )
+
+    since = _since(days)
+    if since:
+        query = query.filter(JobButtonClickAnalytics.created_at >= since)
+
+    results = query.group_by(JobButtonClickAnalytics.button_type).all()
+    counts = {row.button_type: row.count for row in results}
+
+    return {
+        "whatsapp": counts.get("whatsapp", 0),
+        "call": counts.get("call", 0),
+        "share": counts.get("share", 0),
+        "apply": counts.get("apply", 0),
+    }
+
+
+def get_dashboard_overview(db: Session, days: int | None = None):
+    """
+    Compact counts for the analytics dashboard.
+
+    Entity totals are all-time system totals. Analytics click totals respect the
+    optional days window, matching the dashboard date filter.
+    """
+    from app.modules.jobs.models import Job, JobApplication
+    from app.modules.spas.models import Spa
+    from app.modules.users.models import User
+
+    application_status_rows = (
+        db.query(
+            JobApplication.status,
+            func.count(JobApplication.id).label("count"),
+        )
+        .group_by(JobApplication.status)
+        .all()
+    )
+    application_status = {
+        (row.status or "unknown"): row.count for row in application_status_rows
+    }
+
+    button_clicks = get_button_click_totals_by_type(db, days=days)
+
+    return {
+        "total_jobs": db.query(func.count(Job.id)).scalar() or 0,
+        "active_jobs": db.query(func.count(Job.id))
+        .filter(Job.is_active.is_(True))
+        .scalar()
+        or 0,
+        "featured_jobs": db.query(func.count(Job.id))
+        .filter(Job.is_featured.is_(True))
+        .scalar()
+        or 0,
+        "total_applications": db.query(func.count(JobApplication.id)).scalar() or 0,
+        "application_status": {
+            "pending": application_status.get("pending", 0),
+            "reviewed": application_status.get("reviewed", 0),
+            "accepted": application_status.get("accepted", 0),
+            "rejected": application_status.get("rejected", 0),
+            "unknown": application_status.get("unknown", 0),
+        },
+        "total_users": db.query(func.count(User.id)).scalar() or 0,
+        "active_users": db.query(func.count(User.id))
+        .filter(User.is_active.is_(True))
+        .scalar()
+        or 0,
+        "verified_users": db.query(func.count(User.id))
+        .filter(User.is_verified.is_(True))
+        .scalar()
+        or 0,
+        "total_spas": db.query(func.count(Spa.id)).scalar() or 0,
+        "active_spas": db.query(func.count(Spa.id))
+        .filter(Spa.is_active.is_(True))
+        .scalar()
+        or 0,
+        "verified_spas": db.query(func.count(Spa.id))
+        .filter(Spa.is_verified.is_(True))
+        .scalar()
+        or 0,
+        "button_clicks": button_clicks,
+        "total_button_clicks": sum(button_clicks.values()),
+    }

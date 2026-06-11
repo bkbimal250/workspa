@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.analytics import trackers, reports
 from app.modules.analytics.chatbot_reports import get_chatbot_usage
+from app.modules.users.models import User, UserRole
+from app.modules.users.routes import require_role
 from app.utils.ip_location import get_location_from_ip
 from app.utils.device_detection import detect_device_type
 
@@ -67,6 +69,21 @@ def get_popular_locations(
     - days: if provided, only count events within the last `days` days.
     """
     return reports.get_popular_locations(db, limit=limit, days=days)
+
+
+@router.get("/dashboard-overview")
+def get_dashboard_overview(
+    days: int | None = None,
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.MANAGER])),
+    db: Session = Depends(get_db),
+):
+    """
+    Get compact system and analytics totals for the dashboard.
+
+    System totals are all time. Button click totals respect the optional days
+    window so they match the selected analytics period.
+    """
+    return reports.get_dashboard_overview(db, days=days)
 
 
 @router.get("/chatbot-usage")

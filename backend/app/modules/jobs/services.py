@@ -4,7 +4,7 @@ Job business logic
 
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.modules.jobs import models, schemas
 from app.modules.spas.models import Spa
@@ -52,6 +52,13 @@ def get_jobs(
     job_type: str | None = None,
     job_category: str | None = None,
     is_featured: bool | None = None,
+    q: str | None = None,
+    location: str | None = None,
+    salary_min: int | None = None,
+    salary_max: int | None = None,
+    experience_years_min: int | None = None,
+    experience_years_max: int | None = None,
+    sort_by: str = "recent",
 ):
     """
     Get active jobs with optional filters.
@@ -89,6 +96,36 @@ def get_jobs(
             query = query.filter(models.Job.job_category_id == job_category)
     if is_featured is not None:
         query = query.filter(models.Job.is_featured == is_featured)
+    if salary_min is not None:
+        query = query.filter(models.Job.salary_min >= salary_min)
+    if salary_max is not None:
+        query = query.filter(or_(models.Job.salary_max <= salary_max, models.Job.salary_min <= salary_max))
+    if experience_years_min is not None:
+        query = query.filter(models.Job.experience_years_min >= experience_years_min)
+    if experience_years_max is not None:
+        query = query.filter(or_(models.Job.experience_years_max <= experience_years_max, models.Job.experience_years_min <= experience_years_max))
+    if q:
+        search = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                models.Job.title.ilike(search),
+                models.Job.description.ilike(search),
+                models.Job.spa.has(Spa.name.ilike(search)),
+                models.Job.job_category.has(models.JobCategory.name.ilike(search)),
+                models.Job.job_type.has(models.JobType.name.ilike(search)),
+            )
+        )
+    if location:
+        from app.modules.locations.models import City, Area, State
+
+        loc_search = f"%{location.strip()}%"
+        query = query.filter(
+            or_(
+                models.Job.city.has(City.name.ilike(loc_search)),
+                models.Job.area.has(Area.name.ilike(loc_search)),
+                models.Job.state.has(State.name.ilike(loc_search)),
+            )
+        )
 
     # Eagerly load relationships for better performance
     from sqlalchemy.orm import joinedload
@@ -103,7 +140,76 @@ def get_jobs(
         joinedload(models.Job.created_by_user),
     )
 
+    if sort_by == "popular":
+        query = query.order_by(models.Job.view_count.desc(), models.Job.apply_click_count.desc())
+    elif sort_by == "salary":
+        query = query.order_by(models.Job.salary_min.desc().nullslast(), models.Job.created_at.desc())
+    else:
+        query = query.order_by(models.Job.created_at.desc())
+
     return query.offset(skip).limit(limit).all()
+
+
+def get_related_jobs(db: Session, job_id: int, limit: int = 6):
+    """Return active jobs related by category first, then city."""
+    job = get_job_by_id(db, job_id)
+    if not job:
+        return []
+
+    from sqlalchemy.orm import joinedload
+
+    query = (
+        db.query(models.Job)
+        .options(
+            joinedload(models.Job.city),
+            joinedload(models.Job.area),
+            joinedload(models.Job.state),
+            joinedload(models.Job.country),
+            joinedload(models.Job.spa),
+            joinedload(models.Job.job_type),
+            joinedload(models.Job.job_category),
+        )
+        .filter(models.Job.is_active == True, models.Job.id != job_id)
+    )
+
+    related_filter = []
+    if job.job_category_id:
+        related_filter.append(models.Job.job_category_id == job.job_category_id)
+    if job.city_id:
+        related_filter.append(models.Job.city_id == job.city_id)
+    if related_filter:
+        query = query.filter(or_(*related_filter))
+
+    return (
+        query.order_by(
+            (models.Job.job_category_id == job.job_category_id).desc() if job.job_category_id else models.Job.created_at.desc(),
+            models.Job.created_at.desc(),
+        )
+        .limit(limit)
+        .all()
+    )
+
+
+def get_recent_jobs(db: Session, limit: int = 10):
+    """Return newest active jobs."""
+    from sqlalchemy.orm import joinedload
+
+    return (
+        db.query(models.Job)
+        .options(
+            joinedload(models.Job.city),
+            joinedload(models.Job.area),
+            joinedload(models.Job.state),
+            joinedload(models.Job.country),
+            joinedload(models.Job.spa),
+            joinedload(models.Job.job_type),
+            joinedload(models.Job.job_category),
+        )
+        .filter(models.Job.is_active == True)
+        .order_by(models.Job.created_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def get_recruiter_jobs(db: Session, user_id: int, skip: int = 0, limit: int = 100):

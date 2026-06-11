@@ -74,9 +74,12 @@ def delete_country(
     db: Session = Depends(get_db)
 ):
     """Delete a country (admin only)"""
-    deleted = services.delete_country(db, country_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Country not found")
+    try:
+        deleted = services.delete_country(db, country_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Country not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return None
 
 
@@ -140,9 +143,12 @@ def delete_state(
     db: Session = Depends(get_db)
 ):
     """Delete a state (admin only)"""
-    deleted = services.delete_state(db, state_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="State not found")
+    try:
+        deleted = services.delete_state(db, state_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="State not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return None
 
 
@@ -207,9 +213,12 @@ def delete_city(
     db: Session = Depends(get_db)
 ):
     """Delete a city (admin only)"""
-    deleted = services.delete_city(db, city_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="City not found")
+    try:
+        deleted = services.delete_city(db, city_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="City not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return None
 
 
@@ -273,13 +282,16 @@ def delete_area(
     db: Session = Depends(get_db)
 ):
     """Delete an area (admin only)"""
-    deleted = services.delete_area(db, area_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Area not found")
+    try:
+        deleted = services.delete_area(db, area_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Area not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return None
 
 
-@router.get("/cities/{slug}", response_model=schemas.CityResponse)
+@router.get("/cities/slug/{slug}", response_model=schemas.CityResponse)
 def get_city(slug: str, db: Session = Depends(get_db)):
     """Get city by slug"""
     city = services.get_city_by_slug(db, slug)

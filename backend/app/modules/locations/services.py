@@ -7,6 +7,32 @@ from sqlalchemy.exc import IntegrityError
 from app.modules.locations import models, schemas
 from typing import List, Optional
 
+LOCATION_IN_USE_MESSAGE = "This location cannot be deleted because it is already used in jobs, spas, or users."
+
+
+def _handle_delete_integrity_error(db: Session):
+    db.rollback()
+    raise ValueError(LOCATION_IN_USE_MESSAGE)
+
+
+def _validate_state_country(db: Session, state_id: int, country_id: int):
+    state = get_state_by_id(db, state_id)
+    if not state:
+        raise ValueError("State not found")
+    if state.country_id != country_id:
+        raise ValueError("Selected state does not belong to selected country")
+
+
+def _validate_area_unique_in_city(db: Session, name: str, city_id: int, exclude_area_id: int | None = None):
+    query = db.query(models.Area).filter(
+        models.Area.city_id == city_id,
+        models.Area.name == name,
+    )
+    if exclude_area_id is not None:
+        query = query.filter(models.Area.id != exclude_area_id)
+    if query.first():
+        raise ValueError("Area with this name already exists for this city")
+
 
 # Country Services
 def get_country_by_id(db: Session, country_id: int):
@@ -57,8 +83,11 @@ def delete_country(db: Session, country_id: int):
     if not db_country:
         return False
     
-    db.delete(db_country)
-    db.commit()
+    try:
+        db.delete(db_country)
+        db.commit()
+    except IntegrityError:
+        _handle_delete_integrity_error(db)
     return True
 
 
@@ -114,8 +143,11 @@ def delete_state(db: Session, state_id: int):
     if not db_state:
         return False
     
-    db.delete(db_state)
-    db.commit()
+    try:
+        db.delete(db_state)
+        db.commit()
+    except IntegrityError:
+        _handle_delete_integrity_error(db)
     return True
 
 
@@ -148,6 +180,7 @@ def get_all_cities(db: Session, state_id: Optional[int] = None, country_id: Opti
 
 def create_city(db: Session, city: schemas.CityCreate):
     """Create a new city"""
+    _validate_state_country(db, city.state_id, city.country_id)
     db_city = models.City(**city.dict())
     db.add(db_city)
     try:
@@ -166,6 +199,10 @@ def update_city(db: Session, city_id: int, city_update: schemas.CityUpdate):
         return None
     
     update_data = city_update.dict(exclude_unset=True)
+    state_id = update_data.get("state_id", db_city.state_id)
+    country_id = update_data.get("country_id", db_city.country_id)
+    _validate_state_country(db, state_id, country_id)
+
     for field, value in update_data.items():
         setattr(db_city, field, value)
     
@@ -184,8 +221,11 @@ def delete_city(db: Session, city_id: int):
     if not db_city:
         return False
     
-    db.delete(db_city)
-    db.commit()
+    try:
+        db.delete(db_city)
+        db.commit()
+    except IntegrityError:
+        _handle_delete_integrity_error(db)
     return True
 
 
@@ -205,6 +245,7 @@ def get_all_areas(db: Session, city_id: Optional[int] = None, skip: int = 0, lim
 
 def create_area(db: Session, area: schemas.AreaCreate):
     """Create a new area"""
+    _validate_area_unique_in_city(db, area.name, area.city_id)
     db_area = models.Area(**area.dict())
     db.add(db_area)
     try:
@@ -223,6 +264,10 @@ def update_area(db: Session, area_id: int, area_update: schemas.AreaUpdate):
         return None
     
     update_data = area_update.dict(exclude_unset=True)
+    name = update_data.get("name", db_area.name)
+    city_id = update_data.get("city_id", db_area.city_id)
+    _validate_area_unique_in_city(db, name, city_id, exclude_area_id=area_id)
+
     for field, value in update_data.items():
         setattr(db_area, field, value)
     
@@ -241,7 +286,10 @@ def delete_area(db: Session, area_id: int):
     if not db_area:
         return False
     
-    db.delete(db_area)
-    db.commit()
+    try:
+        db.delete(db_area)
+        db.commit()
+    except IntegrityError:
+        _handle_delete_integrity_error(db)
     return True
 

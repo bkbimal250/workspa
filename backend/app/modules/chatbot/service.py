@@ -182,26 +182,63 @@ async def chatbot_search(
         all_jobs = job_services.get_jobs(
             db=db,
             skip=0,
-            limit=100,  # Get more jobs to filter
+            limit=500,  # Get more jobs to filter
             job_type=filters["job_type"],
             job_category=None,  # We'll filter by role name
         )
         
+        import re
+        message_lower = message.lower()
+        
+        # Advanced Dynamic Detection: dynamically check if any job's area, city, or role is mentioned
+        mentioned_areas = set()
+        mentioned_cities = set()
+        mentioned_roles = set()
+        
+        for job in all_jobs:
+            if job.area and job.area.name:
+                area_name = job.area.name.lower()
+                if len(area_name) >= 3 and re.search(r'\b' + re.escape(area_name) + r'\b', message_lower):
+                    mentioned_areas.add(area_name)
+                    
+            if job.city and job.city.name:
+                city_name = job.city.name.lower()
+                if len(city_name) >= 3 and re.search(r'\b' + re.escape(city_name) + r'\b', message_lower):
+                    mentioned_cities.add(city_name)
+                    
+            if job.job_category and job.job_category.name:
+                role_name = job.job_category.name.lower()
+                # Split category names if they have spaces to match partials (e.g., "Spa Therapist" -> "Therapist")
+                role_parts = [r.strip() for r in role_name.split(' ')] + [role_name]
+                for part in role_parts:
+                    if len(part) >= 3 and re.search(r'\b' + re.escape(part) + r'\b', message_lower):
+                        mentioned_roles.add(role_name)
+
         # Filter jobs based on extracted criteria
         filtered_jobs = []
         for job in all_jobs:
-            # Filter by job role (check job category name)
-            if filters["job_role"]:
-                if job.job_category:
-                    category_name_lower = job.job_category.name.lower()
-                    if filters["job_role"].lower() not in category_name_lower:
+            # Filter by job role (dynamic or AI fallback)
+            if mentioned_roles or filters["job_role"]:
+                job_cat = job.job_category.name.lower() if job.job_category else ""
+                if mentioned_roles:
+                    if job_cat not in mentioned_roles:
                         continue
+                elif filters["job_role"] and filters["job_role"].lower() not in job_cat:
+                    continue
             
-            # Filter by city
-            if filters["city"]:
-                if job.city:
-                    if filters["city"].lower() not in job.city.name.lower():
+            # Filter by city (dynamic or AI fallback)
+            if mentioned_cities or filters["city"]:
+                job_city = job.city.name.lower() if job.city else ""
+                if mentioned_cities:
+                    if job_city not in mentioned_cities:
                         continue
+                elif filters["city"] and filters["city"].lower() not in job_city:
+                    continue
+                        
+            # Filter by dynamic area
+            if mentioned_areas:
+                if not job.area or job.area.name.lower() not in mentioned_areas:
+                    continue
             
             # Filter by "near me" using coordinates
             if filters["near_me"] and latitude and longitude:
@@ -213,8 +250,8 @@ async def chatbot_search(
             
             filtered_jobs.append(job)
             
-            # Limit results
-            if len(filtered_jobs) >= 5:
+            # Limit results to 15
+            if len(filtered_jobs) >= 15:
                 break
         
         # Format jobs for response
@@ -237,23 +274,51 @@ async def chatbot_search(
     
     # STRICT SEPARATION: Search for SPAs ONLY if intent is spa_search
     elif filters["intent"] == "spa_search":
+        import re
+        message_lower = message.lower()
+        all_spas_to_check = spa_services.get_spas(db, skip=0, limit=500, is_active=True)
+        
+        # Advanced Detection for SPAs
+        mentioned_areas = set()
+        mentioned_cities = set()
+        for spa in all_spas_to_check:
+            if spa.area and spa.area.name:
+                area_name = spa.area.name.lower()
+                if len(area_name) >= 3 and re.search(r'\b' + re.escape(area_name) + r'\b', message_lower):
+                    mentioned_areas.add(area_name)
+                    
+            if spa.city and spa.city.name:
+                city_name = spa.city.name.lower()
+                if len(city_name) >= 3 and re.search(r'\b' + re.escape(city_name) + r'\b', message_lower):
+                    mentioned_cities.add(city_name)
+                    
         if filters["near_me"] and latitude and longitude:
             # Get SPAs near location
             nearby_spas = spa_services.get_spas_near_location(db, latitude, longitude, radius_km=10)
-            formatted_spas = [format_spa_for_chatbot(spa) for spa in nearby_spas[:5]]
-        elif filters["city"]:
-            # Get SPAs by city
-            all_spas = spa_services.get_spas(db, skip=0, limit=50, is_active=True)
+            formatted_spas = [format_spa_for_chatbot(spa) for spa in nearby_spas[:15]]
+        elif filters["city"] or mentioned_cities or mentioned_areas:
+            # Get SPAs by city or area
             filtered_spas = []
-            for spa in all_spas:
-                if spa.city and filters["city"].lower() in spa.city.name.lower():
-                    filtered_spas.append(spa)
-                    if len(filtered_spas) >= 5:
-                        break
+            for spa in all_spas_to_check:
+                if mentioned_cities or filters["city"]:
+                    spa_city = spa.city.name.lower() if spa.city else ""
+                    if mentioned_cities:
+                        if spa_city not in mentioned_cities:
+                            continue
+                    elif filters["city"] and filters["city"].lower() not in spa_city:
+                        continue
+                        
+                if mentioned_areas:
+                    if not spa.area or spa.area.name.lower() not in mentioned_areas:
+                        continue
+                        
+                filtered_spas.append(spa)
+                if len(filtered_spas) >= 15:
+                    break
             formatted_spas = [format_spa_for_chatbot(spa) for spa in filtered_spas]
         else:
             # Get all active SPAs
-            all_spas = spa_services.get_spas(db, skip=0, limit=5, is_active=True)
+            all_spas = spa_services.get_spas(db, skip=0, limit=15, is_active=True)
             formatted_spas = [format_spa_for_chatbot(spa) for spa in all_spas]
         
         # Generate response message for spas

@@ -402,23 +402,23 @@ def update_user_by_admin(db: Session, user_id: int, user_data: schemas.AdminUser
 
 
 def delete_user(db: Session, user_id: int, permanent: bool = False) -> bool:
-    """
-    Delete a user (admin only).
-    - If permanent=True: Permanently delete from database
-    - If permanent=False: Soft delete by setting is_active=False
-    """
     user = get_user_by_id(db, user_id)
+
     if not user:
         return False
-    
+
+    if not user.is_active:
+        return False
+
     if permanent:
-        # Permanent delete - only for admin
-        db.delete(user)
+        result = db.query(User).filter(User.id == user_id).delete()
+        if result == 0:
+            return False
     else:
-        # Soft delete: set is_active to False instead of actually deleting
-        # This preserves data integrity for relationships
         user.is_active = False
         user.updated_at = datetime.utcnow()
-    
+
     db.commit()
     return True
+
+ 
